@@ -1,0 +1,242 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import type { Locale } from '../data/site';
+
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  title: string;
+  seoTitle?: string;
+  description: string;
+  lead?: string;
+  locale: Locale;
+  alternatePath?: string | null;
+  canonicalPath?: string;
+  breadcrumbs?: BreadcrumbItem[];
+  compact?: boolean;
+  ogType?: 'website' | 'article';
+  ogImage?: string;
+  ogImageAlt?: string;
+  robots?: string;
+  schemaType?: 'ResearchOrganization' | 'WebPage';
+  publishedDate?: string;
+  modifiedDate?: string;
+  authorName?: string;
+}
+
+const {
+  title,
+  seoTitle = `${title} | BIGATIC`,
+  description,
+  lead = description,
+  locale,
+  alternatePath,
+  canonicalPath,
+  breadcrumbs = [],
+  compact = false,
+  ogType = 'website',
+  ogImage,
+  ogImageAlt,
+  robots,
+  schemaType = 'WebPage',
+  publishedDate,
+  modifiedDate,
+  authorName,
+} = Astro.props;
+const hasHeroAside = Astro.slots.has('hero-aside');
+---
+
+<BaseLayout
+  title={seoTitle}
+  description={description}
+  locale={locale}
+  alternatePath={alternatePath}
+  canonicalPath={canonicalPath}
+  ogType={ogType}
+  ogImage={ogImage}
+  ogImageAlt={ogImageAlt}
+  robots={robots}
+  schemaType={schemaType}
+  publishedDate={publishedDate}
+  modifiedDate={modifiedDate}
+  authorName={authorName}
+>
+  <header class:list={['page-hero', { compact, 'has-aside': hasHeroAside }]}>
+    <div class="container-shell hero-layout chassis">
+      <div class="hero-copy">
+        <div class="module-bar hero-scale" aria-hidden="true">
+          <span class="bar-mark"></span>
+          <span class="scale"></span>
+        </div>
+        {breadcrumbs.length > 0 && <Breadcrumbs locale={locale} items={breadcrumbs} />}
+        <h1 class="page-title">{title}</h1>
+        <p class="lead-copy">{lead}</p>
+      </div>
+      {
+        hasHeroAside && (
+          <div class="hero-aside">
+            <slot name="hero-aside" />
+          </div>
+        )
+      }
+    </div>
+  </header>
+  <slot />
+</BaseLayout>
+
+<style>
+  .page-hero {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border-bottom: 1px solid var(--border);
+    background:
+      linear-gradient(rgba(16, 41, 61, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(16, 41, 61, 0.03) 1px, transparent 1px),
+      linear-gradient(155deg, var(--surface) 18%, var(--surface-muted) 100%);
+    background-size:
+      1.2rem 1.2rem,
+      1.2rem 1.2rem,
+      auto;
+  }
+
+  /* El anillo del sello a escala de pagina, recortado por el borde. Es la
+     misma figura que cierra el sitio en el pie, abierta aqui. */
+  .page-hero::after {
+    position: absolute;
+    z-index: -1;
+    top: -32%;
+    right: -8rem;
+    width: 42rem;
+    height: 42rem;
+    border: 1px solid rgba(16, 41, 61, 0.09);
+    border-radius: 50%;
+    box-shadow:
+      inset 0 0 0 5.5rem rgba(16, 41, 61, 0.018),
+      0 0 0 8rem rgba(16, 41, 61, 0.012);
+    content: '';
+    pointer-events: none;
+  }
+
+  .page-hero.has-aside::after {
+    right: 22%;
+  }
+
+  .hero-layout {
+    display: grid;
+    min-height: clamp(18rem, 34vw, 25rem);
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    border-inline: 1px solid rgba(170, 185, 179, 0.64);
+    background: linear-gradient(90deg, rgba(248, 246, 238, 0.46), transparent 64%);
+    padding-inline: clamp(1.25rem, 2.6vw, 2.5rem);
+    padding-block: clamp(3rem, 6vw, 4.75rem);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.55);
+  }
+
+  .has-aside .hero-layout {
+    min-height: clamp(24rem, 42vw, 32rem);
+    grid-template-columns: minmax(0, 1.08fr) minmax(19rem, 0.92fr);
+    gap: clamp(2.5rem, 6vw, 7rem);
+  }
+
+  .compact .hero-layout {
+    min-height: 18rem;
+  }
+
+  .compact.has-aside .hero-layout {
+    min-height: clamp(22rem, 38vw, 29rem);
+  }
+
+  .hero-layout.chassis {
+    --chassis-mark: var(--primary);
+  }
+
+  .hero-copy {
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-scale {
+    margin-bottom: 1.5rem;
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .hero-copy :global(.breadcrumbs) {
+    margin-bottom: 2.25rem;
+  }
+
+  .lead-copy {
+    max-width: 64ch;
+    margin: 1.75rem 0 0;
+  }
+
+  .hero-aside {
+    min-width: 0;
+    justify-self: end;
+    width: 100%;
+  }
+
+  @media (min-width: 56.01rem) and (max-height: 56.25rem) {
+    .hero-layout {
+      min-height: 18rem;
+      padding-block: 2.75rem;
+    }
+
+    .has-aside .hero-layout,
+    .compact.has-aside .hero-layout {
+      min-height: clamp(20rem, 56svh, 27rem);
+    }
+
+    .hero-copy :global(.breadcrumbs) {
+      margin-bottom: 1.5rem;
+    }
+
+    .lead-copy {
+      margin-top: 1.2rem;
+    }
+  }
+
+  @media (max-width: 56rem) {
+    .hero-layout,
+    .has-aside .hero-layout,
+    .compact .hero-layout,
+    .compact.has-aside .hero-layout {
+      min-height: auto;
+      grid-template-columns: 1fr;
+      padding-block: 4rem;
+    }
+
+    .has-aside .hero-layout {
+      gap: 2.75rem;
+    }
+
+    .hero-aside {
+      justify-self: stretch;
+    }
+
+    .hero-copy :global(.breadcrumbs) {
+      margin-bottom: 2rem;
+    }
+  }
+
+  @media (max-width: 35rem) {
+    .hero-layout,
+    .has-aside .hero-layout,
+    .compact .hero-layout,
+    .compact.has-aside .hero-layout {
+      padding-block: 3.25rem;
+    }
+  }
+</style>

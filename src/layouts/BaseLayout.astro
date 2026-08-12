@@ -1,0 +1,306 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import PageRail from '../components/PageRail.astro';
+import type { Locale } from '../data/site';
+import { siteConfig, siteLocation } from '../data/site';
+import { alternateStaticPath, route } from '../i18n/routes';
+import { getUi } from '../i18n/ui';
+
+interface Props {
+  title: string;
+  description: string;
+  locale: Locale;
+  alternatePath?: string | null;
+  canonicalPath?: string;
+  ogType?: 'website' | 'article';
+  ogImage?: string;
+  ogImageAlt?: string;
+  robots?: string;
+  schemaType?: 'ResearchOrganization' | 'WebPage';
+  publishedDate?: string;
+  modifiedDate?: string;
+  authorName?: string;
+}
+
+const {
+  title,
+  description,
+  locale,
+  alternatePath: providedAlternate,
+  canonicalPath = Astro.url.pathname,
+  ogType = 'website',
+  ogImage = '/images/og-default.png',
+  ogImageAlt: providedOgImageAlt,
+  robots = 'index, follow',
+  schemaType = 'WebPage',
+  publishedDate,
+  modifiedDate,
+  authorName,
+} = Astro.props;
+
+const alternatePath =
+  providedAlternate === undefined ? alternateStaticPath(canonicalPath) : providedAlternate;
+const canonical = new URL(canonicalPath, siteConfig.domain).href;
+const alternateLocale = locale === 'es' ? 'en' : 'es';
+const alternateUrl = alternatePath ? new URL(alternatePath, siteConfig.domain).href : null;
+const defaultUrl =
+  locale === 'es'
+    ? canonical
+    : (alternateUrl ?? new URL(route('home', 'es'), siteConfig.domain).href);
+const ogLocale = locale === 'es' ? 'es_CO' : 'en_US';
+const ogImageAlt =
+  providedOgImageAlt ??
+  (locale === 'es'
+    ? 'Semillero de Investigación BIGATIC - Universidad de Santander'
+    : 'BIGATIC Research Group - Universidad de Santander');
+const t = getUi(locale);
+const isIndexable = !robots.includes('noindex');
+const organizationDescription =
+  locale === 'es'
+    ? 'Semillero de investigación de la Universidad de Santander enfocado en ingeniería de software, ciberseguridad y computación aplicada.'
+    : 'BIGATIC Research Group develops applied research in software engineering, cybersecurity, and computing at Universidad de Santander.';
+
+const organizationSchema = {
+  '@type': 'ResearchOrganization',
+  '@id': `${siteConfig.domain}/#organization`,
+  name: locale === 'es' ? siteConfig.spanishName : siteConfig.englishName,
+  alternateName: ['BIGATIC', locale === 'es' ? siteConfig.englishName : siteConfig.spanishName],
+  url: siteConfig.domain,
+  logo: `${siteConfig.domain}/branding/bigatic/logo-bigatic.png`,
+  description: organizationDescription,
+  location: siteLocation,
+  sameAs: [siteConfig.github, siteConfig.institutionalPage],
+  parentOrganization: {
+    '@type': 'CollegeOrUniversity',
+    name: siteConfig.institution,
+    alternateName: siteConfig.institutionShort,
+    url: 'https://udes.edu.co',
+  },
+};
+
+const pageSchema = {
+  '@type': ogType === 'article' ? 'NewsArticle' : 'WebPage',
+  name: title,
+  ...(ogType === 'article' ? { headline: title } : {}),
+  description,
+  url: canonical,
+  inLanguage: locale,
+  ...(publishedDate ? { datePublished: publishedDate } : {}),
+  ...(modifiedDate ? { dateModified: modifiedDate } : {}),
+  ...(authorName ? { author: { '@type': 'Organization', name: authorName } } : {}),
+  isPartOf: { '@id': `${siteConfig.domain}/#website` },
+  about: { '@id': `${siteConfig.domain}/#organization` },
+};
+
+const websiteSchema = {
+  '@type': 'WebSite',
+  '@id': `${siteConfig.domain}/#website`,
+  name: 'BIGATIC',
+  url: siteConfig.domain,
+  inLanguage: ['es', 'en'],
+  publisher: { '@id': `${siteConfig.domain}/#organization` },
+};
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@graph': [organizationSchema, websiteSchema, ...(schemaType === 'WebPage' ? [pageSchema] : [])],
+};
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+    <meta name="theme-color" content="#e9eeec" />
+    <meta name="color-scheme" content="light" />
+    {isIndexable && <link rel="canonical" href={canonical} />}
+    {isIndexable && <link rel="alternate" hreflang={locale} href={canonical} />}
+    {
+      isIndexable && alternateUrl && (
+        <link rel="alternate" hreflang={alternateLocale} href={alternateUrl} />
+      )
+    }
+    {isIndexable && <link rel="alternate" hreflang="x-default" href={defaultUrl} />}
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="BIGATIC - RSS"
+      href={locale === 'es' ? '/rss.xml' : '/en/rss.xml'}
+    />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/branding/bigatic/logo-bigatic.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content="BIGATIC" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    {isIndexable && <meta property="og:url" content={canonical} />}
+    <meta property="og:image" content={new URL(ogImage, siteConfig.domain).href} />
+    <meta property="og:image:alt" content={ogImageAlt} />
+    {ogImage === '/images/og-default.png' && <meta property="og:image:width" content="1200" />}
+    {ogImage === '/images/og-default.png' && <meta property="og:image:height" content="630" />}
+    {ogImage === '/images/og-default.png' && <meta property="og:image:type" content="image/png" />}
+    <meta property="og:locale" content={ogLocale} />
+    {
+      alternateUrl && (
+        <meta property="og:locale:alternate" content={locale === 'es' ? 'en_US' : 'es_CO'} />
+      )
+    }
+    {publishedDate && <meta property="article:published_time" content={publishedDate} />}
+    {modifiedDate && <meta property="article:modified_time" content={modifiedDate} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL(ogImage, siteConfig.domain).href} />
+    <meta name="twitter:image:alt" content={ogImageAlt} />
+    <title>{title}</title>
+    {
+      isIndexable && (
+        <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+      )
+    }
+    {/* Gates reveal styles so content stays visible when JS is off or fails. */}
+    <script is:inline>
+      document.documentElement.classList.add('js');
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content" target="_self">{t.skip}</a>
+    <SiteHeader locale={locale} alternatePath={alternatePath} />
+    <main id="main-content" tabindex="-1">
+      <slot />
+    </main>
+    <PageRail locale={locale} />
+    <SiteFooter locale={locale} alternatePath={alternatePath} />
+  </body>
+</html>
+
+<script>
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const reveals = document.querySelectorAll<HTMLElement>('[data-reveal]');
+  const counters = document.querySelectorAll<HTMLElement>('[data-count]');
+
+  const show = (element: Element) => element.setAttribute('data-visible', '');
+
+  /**
+   * Reveals a card only once its images are decoded, so the frame and the photo
+   * appear together instead of the photo popping in afterwards. Lazy loading is
+   * preserved: `decode()` is only called when the card is about to enter view.
+   * A hard cap guarantees a stalled or broken image can never hide content.
+   */
+  const showWhenReady = (element: Element) => {
+    const pending = [...element.querySelectorAll('img')].filter((image) => !image.complete);
+    if (pending.length === 0) {
+      show(element);
+      return;
+    }
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      show(element);
+    };
+
+    Promise.all(pending.map((image) => image.decode().catch(() => undefined))).then(finish);
+    window.setTimeout(finish, 1200);
+  };
+
+  const runCount = (element: HTMLElement) => {
+    const target = Number(element.dataset.count);
+    if (!Number.isFinite(target)) return;
+    const width = element.textContent?.trim().length ?? 1;
+    const format = (value: number) => String(value).padStart(width, '0');
+    // DESIGN.md §19 caps every motion pattern at 240 ms.
+    const duration = 240;
+    let start: number | null = null;
+
+    const step = (timestamp: number) => {
+      start ??= timestamp;
+      const progress = Math.min((timestamp - start) / duration, 1);
+      // ease-out cubic: fast first, settles gently on the real figure
+      const eased = 1 - Math.pow(1 - progress, 3);
+      element.textContent = format(Math.round(target * eased));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+
+    requestAnimationFrame(step);
+  };
+
+  if (reduceMotion || !('IntersectionObserver' in window)) {
+    reveals.forEach(show);
+  } else {
+    // Stagger within each grid, capped so long lists never feel slow.
+    const seen = new Map<Element, number>();
+    reveals.forEach((element) => {
+      const parent = element.parentElement;
+      if (!parent) return;
+      const index = seen.get(parent) ?? 0;
+      seen.set(parent, index + 1);
+      element.style.setProperty('--reveal-delay', `${Math.min(index, 5) * 60}ms`);
+    });
+
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          showWhenReady(entry.target);
+          revealObserver.unobserve(entry.target);
+        }
+      },
+      // Fires slightly before the card enters view so the image has time to
+      // decode and both land on screen at the same moment.
+      { rootMargin: '0px 0px 12% 0px' },
+    );
+    reveals.forEach((element) => revealObserver.observe(element));
+
+    const countObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        runCount(entry.target as HTMLElement);
+        countObserver.unobserve(entry.target);
+      }
+    });
+    counters.forEach((element) => countObserver.observe(element));
+  }
+
+  // Lit border: feed the pointer position to the .lit::after gradient.
+  // Only on real pointers — touch has no hover, so this stays idle there.
+  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    for (const card of document.querySelectorAll<HTMLElement>('.lit')) {
+      card.addEventListener('pointermove', (event) => {
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty('--mx', `${event.clientX - rect.left}px`);
+        card.style.setProperty('--my', `${event.clientY - rect.top}px`);
+      });
+    }
+  }
+</script>
+
+<style is:global>
+  .skip-link {
+    position: fixed;
+    z-index: 100;
+    top: 0.75rem;
+    left: 0.75rem;
+    border-radius: var(--radius-control);
+    background: var(--primary);
+    color: white;
+    font-weight: 650;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    transform: translateY(-160%);
+    transition: transform 120ms ease;
+  }
+
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+</style>

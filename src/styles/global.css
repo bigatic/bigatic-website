@@ -1,0 +1,927 @@
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource/instrument-serif/400.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-brand-950: #08192a;
+  --color-brand-900: #10293d;
+  --color-brand-800: #16344b;
+  --color-brand-700: #1b5c8e;
+  --color-brand-600: #2477b3;
+  --color-brand-100: #dcecf9;
+  --color-brand-50: #eff7fc;
+  --color-accent-700: #087e35;
+  --color-accent-600: #08a32c;
+  --color-accent-100: #dff5e5;
+  --color-ink: #101f30;
+  --color-muted: #4f5e68;
+  --color-line: #c8d1cd;
+  --color-canvas: #e9eeec;
+  --color-surface: #f8f6ee;
+  --color-surface-muted: #dfe7e4;
+}
+
+/*
+ * Sistema Instrumento. Las superficies se separan por funcion, no por gusto:
+ * las claras y frias son para leer, las profundas y calidas son para operar.
+ * El ambar solo existe dentro del aparato y nunca comparte superficie con el
+ * verde institucional.
+ */
+:root {
+  color-scheme: light;
+
+  /* Superficie de lectura */
+  --background: #e9eeec;
+  --surface: #f8f6ee;
+  --surface-muted: #dfe7e4;
+  --text: #101f30;
+  --text-muted: #4f5e68;
+  --border: #c8d1cd;
+  --rule-strong: #aab9b3;
+
+  /* Chaflan: la esquina cortada del aparato. Ver la decision de esquinas. */
+  --chamfer: 0.52rem;
+
+  /* Un solo azul en todo el sitio: el del aparato. El azul claro anterior
+     desaparece; lo que era marca, boton o titulo usa esta misma tinta. */
+  --primary: #10293d;
+  --primary-hover: #1b5c8e;
+  --accent: #08a32c;
+  --accent-muted: #dff5e5;
+  --success: #087e35;
+  --focus: #b66b00;
+
+  /* Materiales compartidos por el cuaderno y las superficies profundas. */
+  --instrument-black: #02070b;
+  --instrument-paper: #d6c39b;
+  --instrument-muted: #877a61;
+  --metal: #403a2d;
+  --metal-edge: #a88b55;
+
+  --container: 80rem;
+  --reading: 72ch;
+  --header-height: 5rem;
+  /*
+   * Esquinas. Decision del sistema: el aparato va a escuadra.
+   * Un panel, una tarjeta, una imagen y un contenedor tienen radio 0 y se
+   * encuadran con el chasis (§9). Solo tres cosas se curvan, y cada una por
+   * una razon: el control, para acusar que se pulsa; la pildora, porque
+   * expresa un estado y no un contenedor; y el circulo, que es la geometria
+   * del sello. Los tres nombres antiguos quedan en 0 a proposito, para que
+   * ninguna regla heredada reintroduzca una esquina blanda.
+   */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-control: 2px;
+  --radius-pill: 999px;
+  --motion-fast: 160ms;
+  --motion-standard: 200ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Superficie profunda del instrumento: carta de relaciones y pie de pagina. */
+  --deep: #08192a;
+  --deep-2: #10293d;
+  --deep-3: #16344b;
+  --deep-rule: #1e4056;
+  --deep-ink: #d3e2ef;
+  --deep-ink-2: #7e9ab4;
+  --amber: #e3a54c;
+  --amber-hi: #f5c682;
+
+  /* Lineas de barrido del aparato. Textura, nunca animacion. */
+  --scan: repeating-linear-gradient(0deg, rgba(211, 226, 239, 0.035) 0 1px, transparent 1px 3px);
+
+  /* Sombras tenidas del azul del sello: el objeto pertenece a la escena. */
+  --shadow-sm: 0 0.25rem 0.75rem rgba(16, 41, 61, 0.07);
+  --shadow-md: 0 0.9rem 2.4rem rgba(16, 41, 61, 0.1);
+  --shadow-lg: 0 1.75rem 4.5rem rgba(16, 41, 61, 0.15);
+
+  /* Grano: rompe la planitud digital sin cambiar el color percibido. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Mientras la secuencia de entrada esta en pantalla el fondo no se desplaza.
+   La clase la pone y la quita su propio script, y su cierre tiene tope duro. */
+html.intro-locked,
+html.intro-locked body {
+  overflow: hidden;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--header-height) + 1rem);
+}
+
+body {
+  min-width: 20rem;
+  margin: 0;
+  background:
+    radial-gradient(circle at 84% 8%, rgba(16, 41, 61, 0.05), transparent 27rem),
+    linear-gradient(112deg, rgba(248, 246, 238, 0.34), transparent 36%), var(--background);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.7;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* El mismo grano material cubre el manual y la consola. Es deliberadamente
+   casi imperceptible en claro para no reducir la legibilidad. */
+body::before {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  background-image: var(--grain);
+  content: '';
+  mix-blend-mode: multiply;
+  opacity: 0.018;
+  pointer-events: none;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.2em;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+::selection {
+  background: var(--accent-muted);
+  color: var(--primary);
+}
+
+.container-shell {
+  width: min(calc(100% - 2rem), var(--container));
+  margin-inline: auto;
+}
+
+.section-space {
+  padding-block: clamp(4.5rem, 8vw, 8rem);
+}
+
+/* Entry reveal. Scoped to .js so content is never hidden without scripting. */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 240ms var(--ease-out),
+    transform 240ms var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.js [data-reveal][data-visible] {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+ * Voz del aparato. Toda etiqueta, cifra y estado del sistema va en
+ * monoespaciada; la sans queda para leer y la serif para titular. Es la regla
+ * que hace que el sitio se lea como un instrumento sin disfrazarse de uno.
+ */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.mono-label {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.13em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin: 0 0 0.85rem;
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/*
+ * Registro. Etiqueta en mono, guia punteada y cifra tabular. Sustituye a las
+ * cajas de estadistica: la guia alinea la lectura y la cifra queda a la
+ * derecha, como en una tabla de almanaque.
+ */
+.register {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.register > div {
+  display: grid;
+  grid-template-columns: auto minmax(1rem, 1fr) auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.register dt {
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.register .leader {
+  align-self: center;
+  height: 0;
+  border-bottom: 1px dotted var(--rule-strong);
+}
+
+.register dd {
+  margin: 0;
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * Nodo y arista, leidos del sello: el anillo hueco es una entidad que
+ * contiene (un area), el punto lleno es una entidad concreta (un proyecto).
+ * La distincion es semantica, nunca decorativa.
+ */
+.mark-ring,
+.mark-node {
+  display: inline-block;
+  flex: none;
+  border-radius: 50%;
+}
+
+.mark-ring {
+  width: 0.62rem;
+  height: 0.62rem;
+  border: 1.5px solid currentcolor;
+}
+
+.mark-node {
+  width: 0.4rem;
+  height: 0.4rem;
+  background: currentcolor;
+}
+
+/*
+ * Chasis. Dos escuadras en esquinas opuestas encuadran un modulo del aparato.
+ * Es la marca que convierte una tarjeta en un panel de instrumento, y por eso
+ * los modulos van a escuadra: el radio redondo pertenece a otra familia.
+ */
+.chassis {
+  position: relative;
+}
+
+.chassis::before,
+.chassis::after {
+  position: absolute;
+  z-index: 3;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-color: var(--chassis-mark, var(--rule-strong));
+  border-style: solid;
+  content: '';
+  pointer-events: none;
+  transition: border-color var(--motion-fast) ease;
+}
+
+.chassis::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.chassis::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+/*
+ * Escala. Reemplaza a la regla lisa: una linea de marcas leidas como medida,
+ * con marca larga cada cinco. Abre cada modulo y separa sus bloques.
+ */
+.scale {
+  height: 0.5rem;
+  min-width: 2rem;
+  flex: 1;
+  background-image:
+    repeating-linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px 0.5rem),
+    repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px 0.1rem);
+  background-position: bottom;
+  background-repeat: repeat-x;
+  background-size:
+    100% 0.5rem,
+    100% 0.22rem;
+}
+
+.module-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.9rem;
+  width: 100%;
+}
+
+/*
+ * Modulo. Chasis unico para toda entidad en catalogo: area, proyecto y
+ * noticia comparten marco, cabecera, cuerpo y pie. Antes cada ficha tenia su
+ * propio dibujo y el catalogo se leia como tres sistemas distintos.
+ */
+.module {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  background: linear-gradient(118deg, rgba(255, 255, 255, 0.42), transparent 34%), var(--surface);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.72),
+    inset 0 -1px rgba(16, 41, 61, 0.035);
+  padding: 1.15rem 1.2rem 1.2rem;
+  transition:
+    border-color var(--motion-standard) ease,
+    box-shadow var(--motion-standard) ease,
+    transform var(--motion-standard) ease;
+}
+
+/* Franja de estado: el color entra por el canto superior, nunca por el fondo. */
+.module::before {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  left: -1px;
+  height: 2px;
+  background: var(--module-accent, var(--primary));
+  content: '';
+}
+
+.module-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.85rem;
+}
+
+.module-code {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--primary-hover);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.module-state {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.module-title {
+  margin: 1.1rem 0 0;
+  color: var(--primary);
+  font-size: 1.28rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.22;
+  text-wrap: balance;
+}
+
+.module-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.module-body {
+  margin: 0.8rem 0 1.2rem;
+  color: var(--text-muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.module-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.module-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  color: #46586e;
+  padding: 0.32rem 0.6rem 0.32rem 0.48rem;
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+.module-chips .mark-ring {
+  color: var(--primary-hover);
+}
+
+.module-foot {
+  margin-top: 1.15rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .module:hover {
+    --chassis-mark: var(--module-accent, var(--primary-hover));
+    border-color: var(--rule-strong);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+  }
+}
+
+.module:active {
+  transform: scale(0.996);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module,
+  .module:hover {
+    transform: none;
+  }
+}
+
+/* Anillo: encierra una cifra o una insignia, como el sello encierra su grafo. */
+.ring-mark {
+  display: grid;
+  width: 2.9rem;
+  height: 2.9rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Editorial voice: Instrument Serif carries the display sizes (single 400
+   weight, so hierarchy comes from size and measure, not from weight). */
+.display-title,
+.page-title,
+.section-title {
+  margin: 0;
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+.display-title {
+  max-width: 15ch;
+  font-size: clamp(2.9rem, 7.4vw, 6.9rem);
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+
+.page-title {
+  max-width: 18ch;
+  font-size: clamp(2.7rem, 5.4vw, 5.3rem);
+  letter-spacing: -0.018em;
+  line-height: 1.02;
+}
+
+.section-title {
+  font-size: clamp(2.15rem, 4.2vw, 3.8rem);
+  letter-spacing: -0.015em;
+  line-height: 1.06;
+}
+
+.lead-copy {
+  max-width: 61ch;
+  color: var(--text-muted);
+  font-size: clamp(1.1rem, 1.7vw, 1.35rem);
+  line-height: 1.65;
+}
+
+.prose-content {
+  max-width: var(--reading);
+  color: #34435a;
+  font-size: 1.0625rem;
+}
+
+.prose-content > * + * {
+  margin-top: 1.25em;
+}
+
+.prose-content h2,
+.prose-content h3 {
+  color: var(--primary);
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.prose-content h2 {
+  margin-top: 2.75em;
+  font-size: 1.75rem;
+}
+
+.prose-content h3 {
+  margin-top: 2em;
+  font-size: 1.35rem;
+}
+
+.prose-content a {
+  color: var(--primary-hover);
+  font-weight: 600;
+}
+
+.prose-content ul,
+.prose-content ol {
+  padding-left: 1.4rem;
+}
+
+.prose-content ul {
+  list-style: disc;
+}
+
+.prose-content ol {
+  list-style: decimal;
+}
+
+.button-primary,
+.button-secondary,
+.button-text {
+  display: inline-flex;
+  min-height: 2.875rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: var(--radius-control);
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+/* Los controles heredan el corte de la carcasa de la computadora. El texto
+   conserva una caja normal porque es enlace editorial, no control físico. */
+.button-primary,
+.button-secondary {
+  border-radius: 0;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--chamfer)) 0,
+    100% var(--chamfer),
+    100% 100%,
+    var(--chamfer) 100%,
+    0 calc(100% - var(--chamfer))
+  );
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 -2px rgba(2, 7, 11, 0.12);
+}
+
+.button-primary {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: white;
+  padding: 0.85rem 1.15rem;
+}
+
+.button-secondary {
+  border: 1px solid #6a8296;
+  background: var(--surface);
+  color: var(--primary);
+  padding: 0.85rem 1.15rem;
+}
+
+.button-text {
+  min-height: 2.75rem;
+  color: var(--primary-hover);
+}
+
+.button-text svg {
+  transition: transform var(--motion-fast) ease;
+}
+
+.button-primary:active,
+.button-secondary:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .button-primary:hover {
+    border-color: var(--primary-hover);
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+  }
+
+  .button-secondary:hover {
+    border-color: var(--primary-hover);
+    background: var(--surface-muted);
+    transform: translateY(-1px);
+  }
+
+  .button-text:hover {
+    color: var(--primary);
+  }
+
+  .button-text:hover svg {
+    transform: translateX(0.2rem);
+  }
+}
+
+/* Lit border: the edge catches light from the cursor, like a bevelled card
+   under a lamp. Needs --mx/--my from the pointer handler in BaseLayout. */
+.lit::after {
+  position: absolute;
+  z-index: 2;
+  /* inset 0, not -1px: these cards clip overflow, which would eat the ring. */
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    14rem 14rem at var(--mx, 50%) var(--my, 0%),
+    var(--primary-hover),
+    transparent 68%
+  );
+  content: '';
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-standard) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lit:hover::after {
+    opacity: 1;
+  }
+}
+
+/* Grain overlay for deep surfaces. Decorative only. */
+.grain-overlay::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background-image: var(--grain);
+  content: '';
+  mix-blend-mode: overlay;
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+/* Papel milimetrado del instrumento: dos frecuencias, la fina dentro de la gruesa. */
+.surface-grid {
+  background-color: var(--surface-muted);
+  background-image:
+    linear-gradient(rgba(16, 41, 61, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 41, 61, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(16, 41, 61, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 41, 61, 0.026) 1px, transparent 1px);
+  background-size:
+    6rem 6rem,
+    6rem 6rem,
+    1.2rem 1.2rem,
+    1.2rem 1.2rem;
+}
+
+/* Superficie profunda del instrumento. La luz y el desgaste vienen de la
+   misma carcasa de la intro; cada pieza conserva su propia informacion. */
+.deep-surface {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(90deg, rgba(214, 195, 155, 0.025), transparent 18% 82%, rgba(2, 7, 11, 0.28)),
+    radial-gradient(125% 90% at 82% 4%, var(--deep-3) 0%, transparent 58%),
+    radial-gradient(90% 80% at 6% 96%, var(--deep-2) 0%, transparent 62%), var(--deep);
+  box-shadow:
+    inset 0 3px rgba(214, 195, 155, 0.035),
+    inset 0 -3px rgba(2, 7, 11, 0.32);
+  color: var(--deep-ink);
+}
+
+.divider-gradient {
+  width: min(12rem, 100%);
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, var(--primary), var(--accent) 45%, transparent);
+}
+
+.empty-state {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding-block: 2.5rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 47.99rem) {
+  :root {
+    --header-height: 4.5rem;
+  }
+
+  .container-shell {
+    width: min(calc(100% - 1.5rem), var(--container));
+  }
+
+  .section-space {
+    padding-block: 4rem;
+  }
+
+  .display-title {
+    font-size: clamp(2.7rem, 15vw, 4.4rem);
+    line-height: 0.96;
+  }
+
+  .page-title {
+    font-size: clamp(2.45rem, 12vw, 3.8rem);
+  }
+}
+
+/* El documento se repliega como un CRT y recupera la imagen desde su línea
+   central. Es una mejora progresiva: navegadores sin la API lo ignoran. */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  transform-origin: center;
+  animation: crt-collapse 140ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+
+::view-transition-new(root) {
+  transform-origin: center;
+  animation: crt-expand 260ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes crt-collapse {
+  from {
+    filter: brightness(1) saturate(1);
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    filter: brightness(2.2) saturate(0.35);
+    opacity: 0.72;
+    transform: scaleX(0.975) scaleY(0.012);
+  }
+}
+
+@keyframes crt-expand {
+  from {
+    filter: brightness(2.4) saturate(0.3);
+    opacity: 0.72;
+    transform: scaleX(0.975) scaleY(0.012);
+  }
+  62% {
+    filter: brightness(1.08) saturate(0.82);
+  }
+  to {
+    filter: none;
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .js [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+@media print {
+  :root {
+    --background: white;
+    --text: black;
+  }
+
+  body {
+    background: white;
+    color: black;
+    font-size: 11pt;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  .site-header,
+  .site-footer,
+  .no-print,
+  .decorative {
+    display: none !important;
+  }
+
+  .page-hero .hero-layout,
+  .page-hero.compact .hero-layout {
+    min-height: 0 !important;
+    grid-template-columns: 1fr !important;
+    padding-block: 1.25rem !important;
+  }
+
+  .page-hero .hero-aside {
+    display: none !important;
+  }
+
+  .section-space {
+    padding-block: 1.25rem !important;
+  }
+
+  h2,
+  h3,
+  li,
+  article,
+  section {
+    break-inside: avoid;
+  }
+
+  a[href^='http']::after {
+    color: #444;
+    content: ' (' attr(href) ')';
+    font-size: 9pt;
+    font-weight: 400;
+  }
+}
