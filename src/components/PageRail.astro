@@ -1,0 +1,226 @@
+---
+import type { Locale } from '../data/site';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const label = locale === 'es' ? 'Secciones de esta página' : 'Sections on this page';
+---
+
+{
+  /*
+  Riel de secciones. Es el índice de la página leído como un aparato: una marca
+  por sección real, la activa encendida y rotulada. No añade contenido, así que
+  no duplica nada; se construye en el cliente a partir de los encabezados que
+  la página ya declara, y por eso funciona en cualquier ruta sin cablearla.
+*/
+}
+<nav class="page-rail" aria-label={label} data-page-rail hidden>
+  <ol></ol>
+</nav>
+
+<script>
+  const rail = document.querySelector<HTMLElement>('[data-page-rail]');
+  const list = rail?.querySelector('ol');
+  const main = document.querySelector('main');
+
+  if (rail && list && main && window.matchMedia('(min-width: 78rem)').matches) {
+    // Solo secciones que ya declaran su propio encabezado accesible.
+    const sections = Array.from(main.querySelectorAll<HTMLElement>('section[aria-labelledby]'))
+      .map((section) => {
+        const heading = document.getElementById(section.getAttribute('aria-labelledby') ?? '');
+        // El h1 titula la página entera, no una parada del riel.
+        if (!heading || heading.tagName === 'H1') return null;
+        const text = heading.textContent?.trim();
+        return text ? { section, text } : null;
+      })
+      .filter((entry): entry is { section: HTMLElement; text: string } => entry !== null);
+
+    if (sections.length > 2) {
+      const links = sections.map(({ section, text }, index) => {
+        const id = section.id || `rail-section-${index + 1}`;
+        section.id = id;
+
+        const item = document.createElement('li');
+        const link = document.createElement('a');
+        const ordinal = document.createElement('span');
+        const title = document.createElement('span');
+
+        ordinal.className = 'rail-no';
+        ordinal.textContent = String(index + 1).padStart(2, '0');
+        title.className = 'rail-title';
+        title.textContent = text;
+        link.href = `#${id}`;
+        link.append(title, ordinal);
+        item.append(link);
+        list.append(item);
+        return link;
+      });
+
+      const mark = (index: number) =>
+        links.forEach((link, i) => link.toggleAttribute('data-current', i === index));
+
+      // La sección activa es la última cuyo borde superior ya pasó la mitad
+      // de la ventana: coincide con lo que la persona está leyendo.
+      const observer = new IntersectionObserver(
+        () => {
+          const middle = window.innerHeight * 0.5;
+          let current = 0;
+          sections.forEach(({ section }, index) => {
+            if (section.getBoundingClientRect().top <= middle) current = index;
+          });
+          mark(current);
+        },
+        { rootMargin: '-50% 0px -50% 0px', threshold: 0 },
+      );
+
+      sections.forEach(({ section }) => observer.observe(section));
+      mark(0);
+      rail.hidden = false;
+    }
+  }
+</script>
+
+<style>
+  /*
+   * Los nodos del riel se crean en el cliente, así que no llevan el atributo
+   * de scope de Astro: sus reglas van en `:global` a propósito, acotadas por
+   * `.page-rail`, que sí está en el servidor.
+   */
+  .page-rail {
+    position: fixed;
+    z-index: 40;
+    top: 50%;
+    right: max(
+      calc(0.9rem + env(safe-area-inset-right)),
+      calc((100vw - var(--container)) / 2 - 3.25rem)
+    );
+    transform: translateY(-50%);
+  }
+
+  .page-rail[hidden] {
+    display: none;
+  }
+
+  .page-rail :global(ol) {
+    display: grid;
+    gap: 0.1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .page-rail :global(a) {
+    display: flex;
+    min-height: 1.5rem;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  /* La marca es la barra: corta en reposo, larga y encendida en la activa. */
+  .page-rail :global(.rail-no) {
+    position: relative;
+    flex: none;
+    padding-left: 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    opacity: 0.45;
+    transition: opacity var(--motion-fast) ease;
+  }
+
+  .page-rail :global(.rail-no::before) {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 0.7rem;
+    height: 1px;
+    background: currentcolor;
+    content: '';
+    transition:
+      width var(--motion-fast) ease,
+      background-color var(--motion-fast) ease;
+  }
+
+  .page-rail :global(.rail-title) {
+    /* inline-block: max-width no aplica a un inline no reemplazado. */
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    border: 1px solid transparent;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    color: var(--primary);
+    padding: 0.22rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    opacity: 0;
+    text-align: right;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    transition:
+      max-width var(--motion-standard) var(--ease-out),
+      opacity var(--motion-standard) ease;
+    white-space: nowrap;
+  }
+
+  .page-rail :global(a[data-current]) {
+    color: var(--primary);
+  }
+
+  .page-rail :global(a[data-current] .rail-no) {
+    opacity: 1;
+  }
+
+  .page-rail :global(a[data-current] .rail-no::before) {
+    width: 1.15rem;
+    background: var(--accent);
+  }
+
+  /* El rótulo solo aparece al acercarse: en reposo el riel vive en el margen
+     y no tapa contenido. La marca verde basta para decir dónde se está. */
+  .page-rail:hover :global(.rail-title),
+  .page-rail:focus-within :global(.rail-title) {
+    max-width: 13rem;
+    border-color: var(--border);
+    padding-inline: 0.45rem;
+    opacity: 1;
+  }
+
+  .page-rail :global(a:focus-visible) {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .page-rail :global(a:hover) {
+      color: var(--primary);
+    }
+
+    .page-rail :global(a:hover .rail-no) {
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 77.99rem) {
+    .page-rail {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-rail :global(.rail-title),
+    .page-rail :global(.rail-no),
+    .page-rail :global(.rail-no::before) {
+      transition: none;
+    }
+  }
+</style>

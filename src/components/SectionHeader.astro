@@ -1,0 +1,105 @@
+---
+import { ArrowRight } from '@lucide/astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  href?: string;
+  linkLabel?: string;
+  headingLevel?: 1 | 2;
+  headingId?: string;
+  /** Cifra real de la sección. Se omite si no hay nada que contar. */
+  tally?: string;
+}
+
+const { title, description, href, linkLabel, headingLevel = 2, headingId, tally } = Astro.props;
+---
+
+<header class="section-header">
+  <div class="module-bar header-rule" aria-hidden="true">
+    <span class="bar-mark"></span>
+    <span class="scale"></span>
+    {tally && <span class="tally mono-label">{tally}</span>}
+  </div>
+  <div class="heading-copy">
+    {
+      headingLevel === 1 ? (
+        <h1 id={headingId} class="page-title">
+          {title}
+        </h1>
+      ) : (
+        <h2 id={headingId} class="section-title">
+          {title}
+        </h2>
+      )
+    }
+    {description && <p class="description">{description}</p>}
+  </div>
+  {
+    href && linkLabel && (
+      <a class="button-text section-link" href={href}>
+        {linkLabel}
+        <ArrowRight size={17} aria-hidden="true" />
+      </a>
+    )
+  }
+</header>
+
+<style>
+  .section-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 2rem;
+    margin-bottom: clamp(2rem, 4vw, 3.5rem);
+  }
+
+  /* Escala graduada del aparato: abre la sección y lleva la cifra al extremo. */
+  .header-rule {
+    grid-column: 1 / -1;
+    margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .tally {
+    flex: none;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+
+  .heading-copy {
+    max-width: 52rem;
+  }
+
+  .description {
+    max-width: 64ch;
+    margin: 1.25rem 0 0;
+    color: var(--text-muted);
+    font-size: 1.08rem;
+    line-height: 1.65;
+  }
+
+  .section-link {
+    margin-bottom: -0.6rem;
+  }
+
+  @media (max-width: 47.99rem) {
+    .section-header {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .section-link {
+      width: fit-content;
+      margin-bottom: 0;
+    }
+  }
+</style>

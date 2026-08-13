@@ -1,0 +1,90 @@
+---
+import type { Locale } from '../data/site';
+import { getUi } from '../i18n/ui';
+import { route } from '../i18n/routes';
+
+interface Item {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  locale: Locale;
+  items: Item[];
+}
+
+const { locale, items } = Astro.props;
+const t = getUi(locale);
+---
+
+<nav class="breadcrumbs" aria-label={t.breadcrumb}>
+  <ol>
+    <li><a href={route('home', locale)}>{t.home}</a></li>
+    {
+      items.map((item, index) => (
+        <li>
+          <span class="sep" aria-hidden="true">
+            /
+          </span>
+          {item.href && index < items.length - 1 ? (
+            <a href={item.href}>{item.label}</a>
+          ) : (
+            <span aria-current="page">{item.label}</span>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</nav>
+
+<style>
+  /* Ruta del aparato: mono y separada por barras, como un directorio. */
+  .breadcrumbs {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .sep {
+    color: var(--rule-strong);
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  a:focus-visible {
+    outline-offset: 2px;
+  }
+
+  ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    a:hover {
+      color: var(--primary-hover);
+      text-decoration: underline;
+      text-underline-offset: 0.25em;
+    }
+  }
+
+  span[aria-current='page'] {
+    color: var(--primary);
+  }
+</style>
