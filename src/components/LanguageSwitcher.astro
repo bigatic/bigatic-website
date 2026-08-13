@@ -1,0 +1,78 @@
+---
+import type { Locale } from '../data/site';
+import { getUi } from '../i18n/ui';
+
+interface Props {
+  locale: Locale;
+  alternatePath: string | null;
+  compact?: boolean;
+}
+
+const { locale, alternatePath, compact = false } = Astro.props;
+const t = getUi(locale);
+---
+
+{
+  alternatePath && (
+    <div class:list={['language-switcher', { compact }]} role="group" aria-label={t.language}>
+      {locale === 'es' ? (
+        <>
+          <span aria-current="true">ES</span>
+          <span class="separator" aria-hidden="true">
+            /
+          </span>
+          <a href={alternatePath} lang="en" hreflang="en" aria-label={t.english}>
+            EN
+          </a>
+        </>
+      ) : (
+        <>
+          <a href={alternatePath} lang="es" hreflang="es" aria-label={t.spanish}>
+            ES
+          </a>
+          <span class="separator" aria-hidden="true">
+            /
+          </span>
+          <span aria-current="true">EN</span>
+        </>
+      )}
+    </div>
+  )
+}
+
+<style>
+  .language-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  a,
+  span[aria-current='true'] {
+    display: inline-grid;
+    min-width: 1.75rem;
+    min-height: 2.75rem;
+    place-items: center;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  span[aria-current='true'] {
+    color: var(--primary);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    a:hover {
+      color: var(--primary-hover);
+    }
+  }
+
+  .separator {
+    color: #afbac6;
+    font-weight: 400;
+  }
+</style>

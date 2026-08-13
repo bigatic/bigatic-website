@@ -1,0 +1,80 @@
+---
+import type { Locale } from '../data/site';
+import { getUi } from '../i18n/ui';
+
+interface Props {
+  locale: Locale;
+  footer?: boolean;
+}
+
+const { locale, footer = false } = Astro.props;
+const t = getUi(locale);
+---
+
+<span class:list={['brand', { footer }]}>
+  <img
+    src="/branding/bigatic/logo-bigatic.png"
+    width="300"
+    height="300"
+    alt=""
+    aria-hidden="true"
+  />
+  <span class="wordmark">
+    <strong>BIGATIC</strong>
+    <span>{t.brandDescriptor}</span>
+  </span>
+</span>
+
+<style>
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.72rem;
+    color: var(--primary);
+    line-height: 1;
+  }
+
+  img {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: none;
+  }
+
+  .wordmark {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  strong {
+    font-size: 1.1rem;
+    font-weight: 720;
+    letter-spacing: 0.11em;
+  }
+
+  .wordmark span {
+    color: var(--text-muted);
+    font-size: 0.63rem;
+    font-weight: 620;
+    letter-spacing: 0.055em;
+  }
+
+  .footer img {
+    width: 3.4rem;
+    height: 3.4rem;
+  }
+
+  .footer strong {
+    color: white;
+    font-size: 1.25rem;
+  }
+
+  .footer .wordmark span {
+    color: #bad1e7;
+  }
+
+  @media (max-width: 24rem) {
+    .brand:not(.footer) .wordmark span {
+      display: none;
+    }
+  }
+</style>

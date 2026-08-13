@@ -1,0 +1,409 @@
+---
+import { getCollection } from 'astro:content';
+import { Menu, X } from '@lucide/astro';
+import Brand from './Brand.astro';
+import GithubIcon from './icons/GithubIcon.astro';
+import LanguageSwitcher from './LanguageSwitcher.astro';
+import type { Locale } from '../data/site';
+import { getUi } from '../i18n/ui';
+import { route, type RouteKey } from '../i18n/routes';
+import { siteConfig } from '../data/site';
+import { inLocale, isPublished } from '../utils/content';
+
+interface Props {
+  locale: Locale;
+  alternatePath: string | null;
+}
+
+const { locale, alternatePath } = Astro.props;
+const t = getUi(locale);
+const pathname = Astro.url.pathname;
+type NavKey = Exclude<RouteKey, 'home'>;
+const hasProjects = (await getCollection('projects')).filter(inLocale(locale)).some(isPublished);
+const hasOutputs = (await getCollection('outputs')).filter(inLocale(locale)).some(isPublished);
+const navKeys: NavKey[] = ['about', 'research'];
+if (hasProjects) navKeys.push('projects');
+navKeys.push('people');
+if (hasOutputs) navKeys.push('outputs');
+navKeys.push('news', 'join');
+const isActive = (path: string) => path !== '/' && path !== '/en/' && pathname.startsWith(path);
+---
+
+<header class="site-header no-print">
+  <div class="container-shell header-inner">
+    <a
+      class="brand-link"
+      href={route('home', locale)}
+      aria-label={`${siteConfig.siteName} - ${t.home}`}
+    >
+      <Brand locale={locale} />
+    </a>
+
+    <nav class="desktop-nav" aria-label={t.primaryNav}>
+      <ul>
+        {
+          navKeys.map((key) => (
+            <li>
+              <a
+                href={route(key, locale)}
+                aria-current={isActive(route(key, locale)) ? 'page' : undefined}
+              >
+                {t.nav[key]}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="header-actions">
+      <LanguageSwitcher locale={locale} alternatePath={alternatePath} compact />
+      <a
+        class="github-link"
+        href={siteConfig.github}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${t.github} - ${t.external}`}
+      >
+        <GithubIcon size={19} />
+        <span>{t.github}</span>
+      </a>
+      <button
+        class="menu-button"
+        type="button"
+        aria-expanded="false"
+        aria-controls="mobile-navigation"
+        aria-label={t.menu}
+        data-open-label={t.menu}
+        data-close-label={t.closeMenu}
+        data-menu-toggle
+      >
+        <span class="menu-open"><Menu size={24} aria-hidden="true" /></span>
+        <span class="menu-close"><X size={24} aria-hidden="true" /></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="mobile-panel" id="mobile-navigation" hidden data-mobile-panel>
+    <nav class="container-shell" aria-label={t.primaryNav}>
+      <ul>
+        {
+          navKeys.map((key, index) => (
+            <li>
+              <a
+                href={route(key, locale)}
+                aria-current={isActive(route(key, locale)) ? 'page' : undefined}
+              >
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                {t.nav[key]}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      <div class="mobile-meta">
+        <a href={siteConfig.github} target="_blank" rel="noopener noreferrer">
+          <GithubIcon size={18} />
+          {t.github}
+        </a>
+        <LanguageSwitcher locale={locale} alternatePath={alternatePath} />
+      </div>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  const panel = document.querySelector<HTMLElement>('[data-mobile-panel]');
+
+  const setMenuState = (open: boolean) => {
+    if (!toggle || !panel) return;
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute(
+      'aria-label',
+      open ? (toggle.dataset.closeLabel ?? '') : (toggle.dataset.openLabel ?? ''),
+    );
+    panel.hidden = !open;
+    document.documentElement.classList.toggle('menu-open', open);
+  };
+
+  toggle?.addEventListener('click', () => {
+    setMenuState(toggle.getAttribute('aria-expanded') !== 'true');
+  });
+
+  panel
+    ?.querySelectorAll('a')
+    .forEach((link) => link.addEventListener('click', () => setMenuState(false)));
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') {
+      setMenuState(false);
+      toggle.focus();
+    }
+  });
+
+  const desktopQuery = window.matchMedia('(min-width: 1080px)');
+  desktopQuery.addEventListener('change', (event) => {
+    if (event.matches) setMenuState(false);
+  });
+</script>
+
+<style>
+  .site-header {
+    position: sticky;
+    z-index: 50;
+    top: 0;
+    border-top: 3px solid var(--primary);
+    border-bottom: 1px solid var(--rule-strong);
+    background: rgba(248, 246, 238, 0.94);
+    box-shadow:
+      0 0.4rem 1.5rem rgba(16, 41, 61, 0.055),
+      inset 0 1px rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(14px) saturate(0.82);
+  }
+
+  /* Regla graduada: la barra del sitio es la versión clara del riel que
+     enmarca la secuencia de entrada. */
+  .site-header::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 0.32rem;
+    background-image:
+      repeating-linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px 2.5rem),
+      repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px 0.5rem);
+    background-position: bottom;
+    background-repeat: repeat-x;
+    background-size:
+      100% 0.32rem,
+      100% 0.16rem;
+    content: '';
+    pointer-events: none;
+  }
+
+  .header-inner {
+    display: grid;
+    min-height: var(--header-height);
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: clamp(1rem, 3vw, 2.5rem);
+  }
+
+  .brand-link,
+  .github-link {
+    text-decoration: none;
+  }
+
+  .desktop-nav {
+    justify-self: end;
+  }
+
+  ul {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.65rem, 1.4vw, 1.3rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .desktop-nav a {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: var(--text-muted);
+    font-size: 0.79rem;
+    font-weight: 620;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  /* La parada activa se encuadra, no se subraya: es el mismo chasis del
+     sistema a escala de menú. */
+  .desktop-nav a::before,
+  .desktop-nav a::after {
+    position: absolute;
+    width: 0.42rem;
+    height: 0.42rem;
+    border: 0 solid var(--accent);
+    content: '';
+    opacity: 0;
+    transition: opacity var(--motion-fast) ease;
+  }
+
+  .desktop-nav a::before {
+    top: 0.28rem;
+    left: -0.34rem;
+    border-width: 1px 0 0 1px;
+  }
+
+  .desktop-nav a::after {
+    right: -0.34rem;
+    bottom: 0.28rem;
+    border-width: 0 1px 1px 0;
+  }
+
+  .desktop-nav a:hover,
+  .desktop-nav a[aria-current='page'] {
+    color: var(--primary);
+  }
+
+  .desktop-nav a:hover::before,
+  .desktop-nav a:hover::after,
+  .desktop-nav a[aria-current='page']::before,
+  .desktop-nav a[aria-current='page']::after {
+    opacity: 1;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .github-link {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--rule-strong);
+    background: rgba(248, 246, 238, 0.42);
+    color: var(--primary);
+    padding: 0.55rem 0.72rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 0.42rem) 0, 100% 0.42rem, 100% 100%, 0 100%);
+    transition:
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      color var(--motion-fast) ease;
+  }
+
+  .github-link:hover {
+    border-color: var(--primary-hover);
+    background: var(--surface-muted);
+    color: var(--primary-hover);
+  }
+
+  .menu-button {
+    display: none;
+    width: 2.75rem;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--surface);
+    color: var(--primary);
+    cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 0.48rem) 0, 100% 0.48rem, 100% 100%, 0 100%);
+  }
+
+  .menu-close,
+  .menu-button[aria-expanded='true'] .menu-open {
+    display: none;
+  }
+
+  .menu-button[aria-expanded='true'] .menu-close {
+    display: block;
+  }
+
+  .mobile-panel {
+    border-top: 1px solid var(--border);
+    background: linear-gradient(118deg, rgba(255, 255, 255, 0.4), transparent 34%), var(--surface);
+    max-height: calc(100dvh - var(--header-height));
+    overflow-y: auto;
+  }
+
+  .mobile-panel[hidden] {
+    display: none;
+  }
+
+  .mobile-panel nav {
+    padding-block: 1rem 1.5rem;
+  }
+
+  .mobile-panel ul {
+    display: grid;
+    gap: 0;
+  }
+
+  .mobile-panel li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mobile-panel a {
+    display: flex;
+    min-height: 3.4rem;
+    align-items: center;
+    gap: 1rem;
+    color: var(--primary);
+    font-weight: 620;
+    text-decoration: none;
+  }
+
+  .mobile-panel a span {
+    color: #526b82;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+  }
+
+  .mobile-panel a[aria-current='page'] {
+    color: var(--primary-hover);
+  }
+
+  .mobile-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 1.2rem;
+  }
+
+  .mobile-meta > a {
+    min-height: 2.75rem;
+    font-size: 0.84rem;
+  }
+
+  @media (max-width: 74rem) {
+    .desktop-nav ul {
+      gap: 0.7rem;
+    }
+
+    .desktop-nav a {
+      font-size: 0.74rem;
+    }
+
+    .github-link span {
+      display: none;
+    }
+  }
+
+  @media (max-width: 67.49rem) {
+    .header-inner {
+      grid-template-columns: auto 1fr;
+    }
+
+    .desktop-nav,
+    .header-actions > :global(.language-switcher),
+    .github-link {
+      display: none;
+    }
+
+    .header-actions {
+      justify-self: end;
+    }
+
+    .menu-button {
+      display: inline-flex;
+    }
+  }
+</style>

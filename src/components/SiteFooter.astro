@@ -1,0 +1,439 @@
+---
+import { getCollection } from 'astro:content';
+import { ArrowUpRight, MapPin } from '@lucide/astro';
+import Brand from './Brand.astro';
+import GithubIcon from './icons/GithubIcon.astro';
+import LanguageSwitcher from './LanguageSwitcher.astro';
+import type { Locale } from '../data/site';
+import { siteConfig, siteLocation } from '../data/site';
+import { getUi } from '../i18n/ui';
+import { route, type RouteKey } from '../i18n/routes';
+import { inLocale, isPublished } from '../utils/content';
+
+interface Props {
+  locale: Locale;
+  alternatePath: string | null;
+}
+
+const { locale, alternatePath } = Astro.props;
+const t = getUi(locale);
+type NavKey = Exclude<RouteKey, 'home'>;
+const hasProjects = (await getCollection('projects')).filter(inLocale(locale)).some(isPublished);
+const hasOutputs = (await getCollection('outputs')).filter(inLocale(locale)).some(isPublished);
+const navKeys: NavKey[] = ['research'];
+if (hasProjects) navKeys.push('projects');
+navKeys.push('people');
+if (hasOutputs) navKeys.push('outputs');
+navKeys.push('news', 'join', 'contact');
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="site-footer deep-surface no-print">
+  <div class="footer-scene" aria-hidden="true">
+    <span class="footer-scene__reticle"></span>
+  </div>
+
+  <div class="container-shell footer-main">
+    <div class="identity">
+      <a href={route('home', locale)} class="brand-link"><Brand locale={locale} footer /></a>
+      <p>
+        {t.footer.description}
+      </p>
+      <div class="location">
+        <MapPin size={17} aria-hidden="true" />
+        <span>{siteLocation}</span>
+      </div>
+    </div>
+
+    <nav aria-label={t.footerNav}>
+      <p class="footer-label mono-label">{t.footer.explore}</p>
+      <ul>
+        {
+          navKeys.map((key) => (
+            <li>
+              <a href={route(key, locale)}>
+                <span class="mark-node" aria-hidden="true" />
+                {t.nav[key]}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="institution">
+      <p class="footer-label mono-label">{t.footer.affiliation}</p>
+      <p class="university">{siteConfig.institution} <span>UDES</span></p>
+      <p>{siteConfig.program[locale]}</p>
+      <a href={siteConfig.institutionalPage} target="_blank" rel="noopener noreferrer">
+        {t.footer.institutionalProfile}
+        <ArrowUpRight size={15} aria-hidden="true" />
+      </a>
+      <a href={siteConfig.github} target="_blank" rel="noopener noreferrer">
+        <GithubIcon size={16} />
+        GitHub
+      </a>
+    </div>
+  </div>
+
+  <div class="container-shell footer-bottom">
+    <p class="mono">© {currentYear} BIGATIC, Universidad de Santander (UDES)</p>
+    <p class="affiliation-note">
+      {t.footer.affiliationNote}
+    </p>
+    <LanguageSwitcher locale={locale} alternatePath={alternatePath} />
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    position: relative;
+    overflow: clip;
+    isolation: isolate;
+    border-top: 1px solid var(--deep-rule);
+    background: var(--deep);
+    box-shadow:
+      inset 0 0.36rem rgba(168, 139, 85, 0.045),
+      inset 0 -0.36rem rgba(2, 7, 11, 0.32);
+  }
+
+  /* Ventana interna: la escena pertenece al chasis del pie y nunca participa
+     del flujo ni puede quedar flotando por encima de él. */
+  .footer-scene {
+    position: absolute;
+    z-index: 0;
+    top: clamp(0.8rem, 1.5vw, 1.35rem);
+    right: 0;
+    bottom: 0;
+    width: min(72rem, 72%);
+    overflow: hidden;
+    border-top: 1px solid rgba(168, 139, 85, 0.24);
+    border-left: 1px solid rgba(168, 139, 85, 0.18);
+    background-image: url('/images/footer-computing-outpost-v2.webp');
+    background-position: right bottom;
+    background-repeat: no-repeat;
+    background-size: cover;
+    opacity: 0.86;
+    pointer-events: none;
+  }
+
+  .footer-scene::before {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background:
+      linear-gradient(90deg, var(--deep) 0 8%, rgba(8, 25, 42, 0.84) 20%, transparent 52%),
+      linear-gradient(0deg, rgba(2, 7, 11, 0.54), transparent 36%);
+    content: '';
+  }
+
+  .footer-scene::after {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 0.36rem;
+    background-image:
+      repeating-linear-gradient(90deg, var(--metal-edge) 0 1px, transparent 1px 3rem),
+      repeating-linear-gradient(90deg, rgba(168, 139, 85, 0.42) 0 1px, transparent 1px 0.5rem);
+    background-position: top;
+    background-repeat: repeat-x;
+    background-size:
+      100% 0.36rem,
+      100% 0.16rem;
+    content: '';
+    opacity: 0.55;
+  }
+
+  .footer-scene__reticle {
+    position: absolute;
+    z-index: 3;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 3.75rem;
+    aspect-ratio: 1;
+    border: 1px solid rgba(227, 165, 76, 0.34);
+    border-radius: 50%;
+    box-shadow:
+      inset 0 0 0 0.75rem rgba(227, 165, 76, 0.025),
+      0 0 0 0.3rem rgba(8, 25, 42, 0.42);
+    animation: reticle-scan 24s linear infinite;
+  }
+
+  .footer-scene__reticle::before,
+  .footer-scene__reticle::after {
+    position: absolute;
+    background: rgba(227, 165, 76, 0.28);
+    content: '';
+  }
+
+  @keyframes reticle-scan {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .footer-scene__reticle::before {
+    top: 50%;
+    right: -0.4rem;
+    left: -0.4rem;
+    height: 1px;
+  }
+
+  .footer-scene__reticle::after {
+    top: -0.4rem;
+    bottom: -0.4rem;
+    left: 50%;
+    width: 1px;
+  }
+
+  /* Grano sobre la superficie profunda, igual que en la carta. */
+  .site-footer::before {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background-image: var(--grain);
+    content: '';
+    mix-blend-mode: overlay;
+    opacity: 0.13;
+    pointer-events: none;
+  }
+
+  /* El anillo del sello, a escala de pagina y recortado por el borde. */
+  .site-footer::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      var(--deep) 0 34%,
+      rgba(8, 25, 42, 0.92) 50%,
+      rgba(8, 25, 42, 0.36) 100%
+    );
+    content: '';
+    pointer-events: none;
+  }
+
+  .footer-main,
+  .footer-bottom {
+    position: relative;
+    z-index: 2;
+  }
+
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1.4fr 0.7fr 1fr;
+    align-items: start;
+    gap: clamp(2.5rem, 7vw, 7rem);
+    padding-block: clamp(3.5rem, 7vw, 5rem);
+  }
+
+  .brand-link {
+    display: inline-block;
+    text-decoration: none;
+  }
+
+  .identity > p {
+    max-width: 38ch;
+    margin: 1.5rem 0;
+    color: var(--deep-ink-2);
+    font-size: 0.95rem;
+  }
+
+  .location {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--deep-ink);
+    font-size: 0.88rem;
+  }
+
+  .footer-label {
+    margin: 0 0 1.2rem;
+    color: var(--amber);
+  }
+
+  ul {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  nav a {
+    display: flex;
+    min-height: 1.9rem;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--deep-ink);
+    font-size: 0.92rem;
+    text-decoration: none;
+  }
+
+  nav a .mark-node {
+    color: var(--deep-rule);
+    transition: color var(--motion-fast) ease;
+  }
+
+  .institution a {
+    color: var(--deep-ink);
+    text-decoration: none;
+  }
+
+  .institution {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .institution p:not(.footer-label) {
+    margin: 0 0 0.6rem;
+    color: var(--deep-ink-2);
+    font-size: 0.92rem;
+  }
+
+  .institution .university {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    color: white;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 400;
+    line-height: 1.15;
+  }
+
+  /* La sigla se lee como codigo del aparato, no como acento de color. */
+  .university span {
+    border: 1px solid var(--deep-rule);
+    border-radius: 0;
+    color: var(--deep-ink-2);
+    padding: 0.1rem 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+  }
+
+  .institution a {
+    display: inline-flex;
+    min-height: 2.4rem;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .footer-bottom {
+    display: grid;
+    min-height: 4.75rem;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 1.5rem;
+    border-top: 1px solid var(--deep-rule);
+    color: var(--deep-ink-2);
+    font-size: 0.72rem;
+  }
+
+  .footer-bottom p {
+    margin: 0;
+  }
+
+  .footer-bottom .mono {
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+  }
+
+  .footer-bottom :global(.language-switcher) {
+    color: var(--deep-ink-2);
+  }
+
+  .footer-bottom :global(.language-switcher span[aria-current='true']) {
+    color: white;
+  }
+
+  a:focus-visible {
+    outline: 3px solid var(--amber);
+    outline-offset: 3px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    nav a:hover,
+    .institution a:hover {
+      color: white;
+      text-decoration: underline;
+      text-underline-offset: 0.24em;
+    }
+
+    nav a:hover .mark-node {
+      color: var(--amber);
+    }
+  }
+
+  @media (max-width: 55rem) {
+    .footer-scene {
+      top: 34%;
+      width: 100%;
+      border-left: 0;
+      background-position: 68% bottom;
+      opacity: 0.62;
+    }
+
+    .site-footer::after {
+      background: linear-gradient(180deg, rgba(8, 25, 42, 0.9) 0 48%, rgba(8, 25, 42, 0.56) 100%);
+    }
+
+    .footer-main {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .identity {
+      grid-column: 1 / -1;
+    }
+
+    .footer-bottom {
+      grid-template-columns: 1fr auto;
+      padding-block: 1.25rem;
+    }
+
+    .affiliation-note {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .footer-scene__reticle {
+      animation: none;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .footer-scene {
+      top: 42%;
+      background-position: 72% bottom;
+      opacity: 0.5;
+    }
+
+    .footer-scene__reticle {
+      display: none;
+    }
+
+    .footer-main {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+      padding-block: 3rem;
+    }
+
+    .identity {
+      grid-column: auto;
+    }
+
+    .footer-bottom {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+      padding-block: 1.4rem;
+    }
+  }
+</style>
