@@ -1,0 +1,140 @@
+---
+import { ArrowRight } from '@lucide/astro';
+import { getCollection, type CollectionEntry } from 'astro:content';
+import ResearchFieldSketch from './ResearchFieldSketch.astro';
+import type { Locale } from '../data/site';
+import { getUi } from '../i18n/ui';
+import { inLocale, isPublished } from '../utils/content';
+
+interface Props {
+  area: CollectionEntry<'research'>;
+  locale: Locale;
+  index?: number;
+}
+
+const { area, locale, index = 0 } = Astro.props;
+const isEs = locale === 'es';
+const t = getUi(locale);
+const href = isEs
+  ? `/investigacion/${area.data.routeSlug}/`
+  : `/en/research/${area.data.routeSlug}/`;
+
+const key = area.data.translationKey;
+const memberCount = (await getCollection('people'))
+  .filter(inLocale(locale))
+  .filter(isPublished)
+  .filter((person) => person.data.researchAreas.includes(key)).length;
+const projectCount = (await getCollection('projects'))
+  .filter(inLocale(locale))
+  .filter(isPublished)
+  .filter((project) => project.data.researchAreas.includes(key)).length;
+
+const statusLabel =
+  area.data.status === 'current'
+    ? isEs
+      ? 'Actual'
+      : 'Current'
+    : isEs
+      ? 'En desarrollo'
+      : 'In development';
+const pad = (value: number) => String(value).padStart(2, '0');
+---
+
+<article class="module chassis research-card" data-reveal>
+  <div class="module-head">
+    <span class="module-code">
+      {
+        /* Anillo hueco: en el sello, la entidad que contiene. Un area contiene
+          proyectos e integrantes. */
+      }
+      <span class="mark-ring" aria-hidden="true"></span>
+      {pad(index + 1)}
+    </span>
+    <span class="module-state">{statusLabel}</span>
+  </div>
+
+  <ResearchFieldSketch areaKey={key} />
+
+  <h3 class="module-title">
+    <a href={href}>{area.data.name}</a>
+  </h3>
+  <p class="module-body">{area.data.shortDescription}</p>
+
+  <ul class="module-chips" aria-label={t.topics}>
+    {area.data.topics.slice(0, 3).map((topic) => <li>{topic}</li>)}
+  </ul>
+
+  <div class="module-foot">
+    <dl class="register">
+      <div>
+        <dt>{t.nav.people}</dt>
+        <span class="leader" aria-hidden="true"></span>
+        <dd>{pad(memberCount)}</dd>
+      </div>
+      <div>
+        <dt>{t.nav.projects}</dt>
+        {/* Un punto por proyecto vinculado: la guia del registro es el dato. */}
+        <span class="nodes" aria-hidden="true">
+          {Array.from({ length: projectCount }, () => <i class="mark-node" />)}
+        </span>
+        <dd>{pad(projectCount)}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <span class="module-action" aria-hidden="true">
+    {t.explore}
+    <ArrowRight size={15} />
+  </span>
+</article>
+
+<style>
+  .research-card {
+    --module-accent: var(--primary);
+  }
+
+  .module-title a::after {
+    position: absolute;
+    z-index: 4;
+    inset: 0;
+    content: '';
+  }
+
+  .research-card:has(.module-title a:focus-visible) {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  .nodes {
+    display: flex;
+    align-self: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.28rem;
+    min-width: 0;
+    color: var(--accent);
+  }
+
+  .module-action {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .module-action :global(svg) {
+    transition: transform var(--motion-fast) ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .research-card:hover .module-action :global(svg) {
+      transform: translateX(0.25rem);
+    }
+  }
+</style>

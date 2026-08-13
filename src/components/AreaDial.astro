@@ -1,0 +1,553 @@
+---
+import { getCollection } from 'astro:content';
+import type { Locale } from '../data/site';
+import { byOrder, inLocale, isPublished } from '../utils/content';
+import { getUi } from '../i18n/ui';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+const t = getUi(locale);
+
+/**
+ * Dial de áreas (DESIGN.md §22).
+ *
+ * Pieza decorativa del hero, no una sección. Solo muestra los cuerpos y sus
+ * relaciones: qué áreas existen, cuánta gente pesa cada una y qué proyectos
+ * las cruzan. Las cifras, descripciones y el catálogo viven abajo, en la
+ * sección de áreas; aquí no se repiten.
+ *
+ * Sigue rigiendo la regla: toda forma dibujada corresponde a una entrada
+ * publicada de las colecciones.
+ */
+const areas = (await getCollection('research')).filter(inLocale(locale)).sort(byOrder);
+const people = (await getCollection('people')).filter(inLocale(locale)).filter(isPublished);
+const projects = (await getCollection('projects')).filter(inLocale(locale)).filter(isPublished);
+
+// Familias cromáticas de los núcleos (DESIGN.md §6), levantadas para conservar
+// contraste sobre la superficie profunda.
+const areaColors: Record<string, string> = {
+  'software-engineering': '#8580e4',
+  cybersecurity: '#3ba4de',
+  'infrastructure-automation': '#4e9fc6',
+  'human-computer-interaction': '#dd77a6',
+  'ai-data': '#e29438',
+  'applied-computing': '#35abb2',
+};
+
+const areaKeys = areas.map((area) => area.data.translationKey);
+
+// Un proyecto ocupa una ranura en el anillo de cada área que cruza. Se resuelve
+// en el servidor para que el lienzo y los rótulos compartan la misma geometría.
+const links = projects.map((project) =>
+  project.data.researchAreas.map((key) => areaKeys.indexOf(key)).filter((index) => index >= 0),
+);
+
+const nodes = areas.map((area, index) => {
+  const key = area.data.translationKey;
+  const angle = (index / areas.length) * Math.PI * 2 - Math.PI / 2;
+  return {
+    label: area.data.shortName,
+    name: area.data.name,
+    href: isEs ? `/investigacion/${area.data.routeSlug}/` : `/en/research/${area.data.routeSlug}/`,
+    color: areaColors[key] ?? '#4e9fc6',
+    mass: people.filter((person) => person.data.researchAreas.includes(key)).length,
+    orbit: links.filter((areaIndexes) => areaIndexes.includes(index)).length,
+    angle,
+    // El radio del rótulo lo fija el CSS (`--r`), porque cambia con el ancho.
+    // Aquí solo viaja la dirección.
+    cos: Math.cos(angle).toFixed(4),
+    sin: Math.sin(angle).toFixed(4),
+  };
+});
+---
+
+{
+  /*
+   * Si no hay areas publicadas no se dibuja nada. Un bisel vacio seria un
+   * adorno sin entidad detras, justo lo que §3 prohibe. Ademas convierte un
+   * fallo de datos en una ausencia legible en lugar de en un circulo mudo.
+   */
+}
+{
+  nodes.length > 0 && (
+    <div class="dial" role="group" aria-label={t.nav.research} data-dial>
+      <div class="disc">
+        <canvas data-dial-canvas aria-hidden="true" />
+        <span class="rim" aria-hidden="true" />
+      </div>
+
+      <ul class="dial-labels">
+        {nodes.map((node) => (
+          <li
+            style={`--cos: ${node.cos}; --sin: ${node.sin}; --dot: ${node.color}; --side: ${
+              Math.cos(node.angle) < -0.2 ? 'end' : Math.cos(node.angle) > 0.2 ? 'start' : 'center'
+            }`}
+          >
+            <a href={node.href} data-dial-label>
+              <span class="mark-ring" aria-hidden="true" />
+              <span>{node.label}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+
+      <script
+        is:inline
+        type="application/json"
+        data-dial-data
+        set:html={JSON.stringify(
+          nodes.map((node) => ({ a: node.angle, c: node.color, m: node.mass, o: node.orbit })),
+        )}
+      />
+    </div>
+  )
+}
+
+<script>
+  interface DialNode {
+    a: number;
+    c: number | string;
+    m: number;
+    o: number;
+  }
+
+  const dial = document.querySelector<HTMLElement>('[data-dial]');
+  const canvas = dial?.querySelector<HTMLCanvasElement>('[data-dial-canvas]');
+  const dataTag = dial?.querySelector<HTMLScriptElement>('[data-dial-data]');
+
+  if (dial && canvas && dataTag) {
+    const ctx = canvas.getContext('2d');
+    const nodes: DialNode[] = JSON.parse(dataTag.textContent ?? '[]');
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    if (ctx && nodes.length > 0) {
+      let size = 0;
+      let clock = 0;
+      let focused = -1;
+      const dialStyles = getComputedStyle(dial);
+      const amber = dialStyles.getPropertyValue('--amber').trim() || '#e3a54c';
+      const amberHi = dialStyles.getPropertyValue('--amber-hi').trim() || '#f5c682';
+
+      // Barrido de arranque: el aparato adquiere los cuerpos uno a uno, en el
+      // orden del anillo. Una sola vuelta, nunca se repite.
+      const BOOT_MS = 1150;
+      let bootStart = 0;
+      let boot = 0;
+      const labels = Array.from(dial.querySelectorAll<HTMLAnchorElement>('[data-dial-label]'));
+      const acquire = (index: number) => labels[index]?.removeAttribute('data-idle');
+
+      const alpha = (hex: string, value: number) => {
+        const n = parseInt(hex.slice(1), 16);
+        return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${value})`;
+      };
+
+      const still = () => reduce.matches;
+
+      // Cuánto ha girado el barrido desde el arranque, en radianes.
+      const swept = () => boot * Math.PI * 2;
+      // Cuánto le falta a este cuerpo para entrar en el barrido.
+      const offsetOf = (node: DialNode) => (node.a + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
+      const radius = (node: DialNode) => Math.max(6, Math.min(17, 5 + Math.sqrt(node.m) * 2.4));
+
+      // Los cuerpos no derivan: los rótulos son HTML colocados sobre las mismas
+      // coordenadas, y una deriva los desincronizaría. El movimiento vive en
+      // los proyectos que recorren cada anillo.
+      const position = (node: DialNode) => ({
+        x: size / 2 + Math.cos(node.a) * size * 0.31,
+        y: size / 2 + Math.sin(node.a) * size * 0.31,
+      });
+
+      const TILT = -0.38;
+
+      const draw = () => {
+        ctx.clearRect(0, 0, size, size);
+        const cx = size / 2;
+        const cy = size / 2;
+
+        // Aristas: la pertenencia de cada área al semillero.
+        nodes.forEach((node, index) => {
+          if (offsetOf(node) > swept()) return;
+          const point = position(node);
+          const lit = index === focused;
+          const line = ctx.createLinearGradient(cx, cy, point.x, point.y);
+          line.addColorStop(0, `rgba(126,154,180,${lit ? 0.4 : 0.12})`);
+          line.addColorStop(1, alpha(String(node.c), lit ? 0.65 : 0.18));
+          ctx.strokeStyle = line;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(point.x, point.y);
+          ctx.stroke();
+        });
+
+        // Núcleo: BIGATIC.
+        ctx.strokeStyle = alpha(amber, 0.32);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.045, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = amberHi;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        nodes.forEach((node, index) => {
+          if (offsetOf(node) > swept()) return;
+          const point = position(node);
+          const r = radius(node);
+          const color = String(node.c);
+          const lit = index === focused;
+          const rx = r * 2.05;
+          const ry = rx * 0.3;
+          const spin = still() ? 0 : clock * 0.00016 * (index % 2 ? 1 : -1);
+
+          const ring = (from: number, to: number) => {
+            if (node.o === 0) return;
+            ctx.save();
+            ctx.translate(point.x, point.y);
+            ctx.rotate(TILT);
+            ctx.strokeStyle = alpha(color, lit ? 0.6 : 0.24);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, rx, ry, 0, from, to);
+            ctx.stroke();
+            ctx.restore();
+          };
+
+          const dots = (front: boolean) => {
+            for (let k = 0; k < node.o; k++) {
+              const angle = (k / node.o) * Math.PI * 2 + spin + index;
+              if (Math.sin(angle) > 0 !== front) continue;
+              const ex = Math.cos(angle) * rx;
+              const ey = Math.sin(angle) * ry;
+              ctx.fillStyle = alpha(color, lit ? 1 : 0.72);
+              ctx.beginPath();
+              ctx.arc(
+                point.x + ex * Math.cos(TILT) - ey * Math.sin(TILT),
+                point.y + ex * Math.sin(TILT) + ey * Math.cos(TILT),
+                front ? 2.1 : 1.6,
+                0,
+                Math.PI * 2,
+              );
+              ctx.fill();
+            }
+          };
+
+          ring(Math.PI, Math.PI * 2);
+          dots(false);
+
+          // Cuerpo con terminador: una sola fuente de luz para toda la escena.
+          const shade = ctx.createRadialGradient(
+            point.x - r * 0.42,
+            point.y - r * 0.46,
+            r * 0.08,
+            point.x,
+            point.y,
+            r * 1.08,
+          );
+          shade.addColorStop(0, alpha(color, lit ? 1 : 0.92));
+          shade.addColorStop(0.52, alpha(color, lit ? 0.82 : 0.62));
+          shade.addColorStop(1, 'rgba(6,17,28,0.94)');
+          ctx.fillStyle = shade;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, r, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = alpha(color, lit ? 0.9 : 0.42);
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, r, Math.PI * 0.72, Math.PI * 1.86);
+          ctx.stroke();
+
+          if (lit) {
+            const halo = ctx.createRadialGradient(point.x, point.y, r, point.x, point.y, r * 3);
+            halo.addColorStop(0, alpha(color, 0.24));
+            halo.addColorStop(1, alpha(color, 0));
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, r * 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ring(0, Math.PI);
+          dots(true);
+        });
+
+        if (boot < 1) drawSweep();
+      };
+
+      // Aguja y estela del barrido. Solo existe mientras dura el arranque.
+      const drawSweep = () => {
+        const cx = size / 2;
+        const cy = size / 2;
+        const reach = size * 0.47;
+        const angle = -Math.PI / 2 + swept();
+
+        if (typeof ctx.createConicGradient === 'function') {
+          const trail = ctx.createConicGradient(angle - 0.9, cx, cy);
+          trail.addColorStop(0, 'rgba(227,165,76,0)');
+          trail.addColorStop(0.14, 'rgba(227,165,76,0.1)');
+          trail.addColorStop(0.145, 'rgba(227,165,76,0)');
+          ctx.fillStyle = trail;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, reach, angle - 0.9, angle);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        ctx.strokeStyle = 'rgba(245,198,130,0.55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(angle) * reach, cy + Math.sin(angle) * reach);
+        ctx.stroke();
+      };
+
+      const resize = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        size = canvas.getBoundingClientRect().width;
+        canvas.width = Math.round(size * dpr);
+        canvas.height = Math.round(size * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      };
+
+      // El rótulo y su cuerpo son la misma entidad: enfocar uno enciende el otro.
+      dial.querySelectorAll<HTMLAnchorElement>('[data-dial-label]').forEach((label, index) => {
+        const on = () => {
+          focused = index;
+          if (still()) draw();
+        };
+        const off = () => {
+          focused = -1;
+          if (still()) draw();
+        };
+        label.addEventListener('pointerenter', on);
+        label.addEventListener('focus', on);
+        label.addEventListener('pointerleave', off);
+        label.addEventListener('blur', off);
+      });
+
+      const frame = (now: number) => {
+        clock = now;
+        if (!bootStart) bootStart = now;
+        boot = Math.min(1, (now - bootStart) / BOOT_MS);
+        nodes.forEach((node, index) => {
+          if (offsetOf(node) <= swept()) acquire(index);
+        });
+        draw();
+        if (!still()) requestAnimationFrame(frame);
+      };
+
+      window.addEventListener('resize', () => {
+        resize();
+        if (still()) draw();
+      });
+
+      reduce.addEventListener('change', () => {
+        if (still()) draw();
+        else requestAnimationFrame(frame);
+      });
+
+      resize();
+      if (still()) {
+        // Con movimiento reducido no hay barrido: todo aparece adquirido.
+        boot = 1;
+        labels.forEach((_, index) => acquire(index));
+        draw();
+      } else {
+        // Solo aquí se ocultan los rótulos. Si el script nunca llega, el
+        // atributo no se pone y los seis enlaces quedan visibles.
+        dial.setAttribute('data-boot', '');
+        labels.forEach((label) => label.setAttribute('data-idle', ''));
+        requestAnimationFrame(frame);
+        // Tope duro: si el barrido no avanza (pestaña en segundo plano, cuadro
+        // perdido), los seis rótulos aparecen igual. Un rótulo oculto es
+        // contenido perdido, y eso no puede depender de una animación.
+        window.setTimeout(() => {
+          boot = 1;
+          labels.forEach((_, index) => acquire(index));
+        }, BOOT_MS + 900);
+      }
+    }
+  }
+</script>
+
+<style>
+  .dial {
+    position: relative;
+    width: min(100%, 32rem);
+    margin-inline: auto;
+    aspect-ratio: 1;
+  }
+
+  /* Portilla: el disco profundo del aparato abierto sobre el suelo claro. */
+  .disc {
+    position: absolute;
+    inset: 17%;
+    overflow: hidden;
+    border: 1px solid var(--deep-rule);
+    border-radius: 50%;
+    background:
+      radial-gradient(120% 120% at 74% 8%, var(--deep-3) 0%, transparent 62%),
+      radial-gradient(90% 90% at 12% 96%, var(--deep-2) 0%, transparent 66%), var(--deep);
+    box-shadow:
+      0 0 0 0.36rem var(--deep),
+      0 0 0 calc(0.36rem + 1px) rgba(168, 139, 85, 0.48),
+      0 1.4rem 3.4rem rgba(8, 25, 42, 0.28),
+      inset 0 0 2.5rem rgba(0, 0, 0, 0.45);
+  }
+
+  .disc::after {
+    position: absolute;
+    inset: 0;
+    background-image: var(--scan), var(--grain);
+    background-size:
+      auto,
+      140px 140px;
+    content: '';
+    mix-blend-mode: overlay;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Bisel graduado: marcas cada 6 grados, largas cada 30. */
+  .rim {
+    position: absolute;
+    inset: -0.85rem;
+    border-radius: 50%;
+    background:
+      repeating-conic-gradient(var(--rule-strong) 0deg 0.35deg, transparent 0.35deg 30deg),
+      repeating-conic-gradient(var(--border) 0deg 0.3deg, transparent 0.3deg 6deg);
+    mask: radial-gradient(
+      circle,
+      transparent 0 calc(50% - 0.85rem),
+      #000 calc(50% - 0.85rem) 50%,
+      transparent 50%
+    );
+    -webkit-mask: radial-gradient(
+      circle,
+      transparent 0 calc(50% - 0.85rem),
+      #000 calc(50% - 0.85rem) 50%,
+      transparent 50%
+    );
+    pointer-events: none;
+  }
+
+  .dial-labels {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dial-labels {
+    --r: 47.5%;
+  }
+
+  .dial-labels li {
+    position: absolute;
+    top: calc(50% + var(--sin) * var(--r));
+    left: calc(50% + var(--cos) * var(--r));
+    display: flex;
+    width: 9.5rem;
+    justify-content: var(--side);
+    transform: translate(-50%, -50%);
+  }
+
+  .dial-labels a {
+    display: inline-flex;
+    min-height: 1.9rem;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid transparent;
+    background: rgba(248, 246, 238, 0.9);
+    color: var(--primary);
+    padding: 0.25rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+    box-shadow: 0 0.2rem 0.7rem rgba(16, 41, 61, 0.07);
+    clip-path: polygon(0 0, calc(100% - 0.32rem) 0, 100% 0.32rem, 100% 100%, 0 100%);
+    transition:
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease;
+  }
+
+  .dial-labels .mark-ring {
+    color: var(--dot);
+  }
+
+  /* Los rótulos entran cuando el barrido los alcanza. Nunca desde escala 0:
+     nada en el mundo real aparece de la nada. */
+  .dial[data-boot] .dial-labels a[data-idle] {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  .dial[data-boot] .dial-labels a {
+    transition:
+      opacity 260ms var(--ease-out),
+      transform 260ms var(--ease-out),
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease;
+  }
+
+  .dial-labels a:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .dial-labels a:hover {
+      border-color: var(--dot);
+      color: var(--primary-hover);
+    }
+  }
+
+  /* En pantallas estrechas el rótulo se acerca al bisel: a radio completo se
+     saldría de la caja y quedaría cortado por el borde de la página. */
+  @media (max-width: 40rem) {
+    .dial-labels {
+      --r: 39%;
+    }
+
+    .dial-labels li {
+      width: 8rem;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .dial {
+      width: min(100%, 24rem);
+    }
+
+    .dial-labels {
+      --r: 36%;
+    }
+
+    .dial-labels li {
+      width: 7.25rem;
+    }
+
+    .dial-labels a {
+      font-size: 0.54rem;
+      letter-spacing: 0.03em;
+    }
+  }
+</style>

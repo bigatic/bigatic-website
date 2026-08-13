@@ -1,0 +1,180 @@
+---
+import type { Locale } from '../data/site';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const copy = {
+  es: {
+    label: 'Lámina de campo',
+    title: 'La investigación toma forma en instrumentos concretos.',
+    body: 'Observar, registrar y construir: cada proyecto convierte una pregunta en un método que puede ponerse a prueba.',
+    alt: 'Instrumentos de observación, mapas y una sonda de campo conectados sobre una superficie rocosa.',
+    caption: 'Estación de observación y registro',
+  },
+  en: {
+    label: 'Field plate',
+    title: 'Research takes shape through concrete instruments.',
+    body: 'Observe, record, and build: each project turns a question into a method that can be tested.',
+    alt: 'Observation instruments, maps, and a field probe connected across a rocky surface.',
+    caption: 'Observation and recording station',
+  },
+}[locale];
+---
+
+<figure class="field-plate chassis" data-reveal>
+  <div class="field-plate__visual">
+    <img
+      src="/images/research-field-plate-v2.webp"
+      width="1891"
+      height="831"
+      loading="lazy"
+      decoding="async"
+      alt={copy.alt}
+    />
+  </div>
+
+  <figcaption class="field-plate__copy">
+    <p class="field-plate__label mono-label">{copy.label}</p>
+    <h3>{copy.title}</h3>
+    <p>{copy.body}</p>
+    <span class="field-plate__caption mono-label">{copy.caption}</span>
+  </figcaption>
+</figure>
+
+<style>
+  .field-plate {
+    --chassis-mark: var(--primary);
+    display: grid;
+    grid-template-columns: minmax(0, 1.9fr) minmax(16rem, 0.72fr);
+    margin: 0 0 clamp(1.25rem, 2.4vw, 2rem);
+    border: 1px solid var(--rule-strong);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .field-plate__visual {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+    background: #f8f5ec;
+  }
+
+  .field-plate__visual::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 0.38rem;
+    background-image:
+      repeating-linear-gradient(90deg, var(--primary) 0 1px, transparent 1px 3rem),
+      repeating-linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px 0.45rem);
+    background-position: bottom;
+    background-repeat: repeat-x;
+    background-size:
+      100% 0.38rem,
+      100% 0.16rem;
+    content: '';
+    opacity: 0.58;
+    pointer-events: none;
+  }
+
+  .field-plate img {
+    width: 100%;
+    height: 100%;
+    min-height: 18rem;
+    object-fit: contain;
+    object-position: center;
+  }
+
+  .field-plate__copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(1.4rem, 3vw, 2.4rem);
+  }
+
+  .field-plate__label {
+    margin: 0 0 1rem;
+    color: var(--primary-hover);
+  }
+
+  .field-plate h3 {
+    max-width: 13ch;
+    margin: 0;
+    color: var(--primary);
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 3vw, 3rem);
+    font-weight: 400;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+
+  .field-plate__copy > p:not(.field-plate__label) {
+    max-width: 38ch;
+    margin: 1.25rem 0 1.6rem;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .field-plate__caption {
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem;
+  }
+
+  @media (max-width: 56rem) {
+    .field-plate {
+      grid-template-columns: 1fr;
+    }
+
+    .field-plate__visual {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field-plate img {
+      min-height: 0;
+      aspect-ratio: 1891 / 831;
+    }
+
+    .field-plate__copy {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(15rem, 0.8fr);
+      align-items: end;
+      gap: 0.75rem 2rem;
+    }
+
+    .field-plate__label,
+    .field-plate h3 {
+      grid-column: 1;
+    }
+
+    .field-plate__copy > p:not(.field-plate__label),
+    .field-plate__caption {
+      grid-column: 2;
+    }
+
+    .field-plate__copy > p:not(.field-plate__label) {
+      grid-row: 1 / span 2;
+      margin: 0;
+    }
+  }
+
+  @media (max-width: 38rem) {
+    .field-plate__copy {
+      display: flex;
+    }
+
+    .field-plate__caption {
+      margin-top: 0;
+    }
+  }
+</style>
