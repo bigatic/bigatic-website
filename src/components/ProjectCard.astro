@@ -1,0 +1,169 @@
+---
+import { ArrowRight, UsersRound } from '@lucide/astro';
+import { getCollection, type CollectionEntry } from 'astro:content';
+import ProjectBuildSketch from './ProjectBuildSketch.astro';
+import type { Locale } from '../data/site';
+import { getUi } from '../i18n/ui';
+
+interface Props {
+  project: CollectionEntry<'projects'>;
+  locale: Locale;
+  index?: number;
+}
+
+const { project, locale, index = 0 } = Astro.props;
+const t = getUi(locale);
+const href =
+  locale === 'es'
+    ? `/proyectos/${project.data.routeSlug}/`
+    : `/en/projects/${project.data.routeSlug}/`;
+const areaNames = new Map(
+  (await getCollection('research'))
+    .filter((area) => area.data.locale === locale)
+    .map((area) => [area.data.translationKey, area.data.shortName]),
+);
+const labels = {
+  es: {
+    active: 'Activo',
+    completed: 'Finalizado',
+    planned: 'Planificado',
+    archived: 'Archivado',
+    team: 'Equipo',
+    crossing: 'Áreas cruzadas',
+    year: 'Inicio',
+  },
+  en: {
+    active: 'Active',
+    completed: 'Completed',
+    planned: 'Planned',
+    archived: 'Archived',
+    team: 'Team',
+    crossing: 'Areas crossed',
+    year: 'Start',
+  },
+};
+const statusAccents = {
+  active: 'var(--accent)',
+  planned: 'var(--primary-hover)',
+  completed: '#526b82',
+  archived: 'var(--border)',
+};
+const copy = labels[locale];
+const pad = (value: number) => String(value).padStart(2, '0');
+---
+
+<article
+  class="module chassis project-card"
+  data-reveal
+  style={`--module-accent: ${statusAccents[project.data.status]}`}
+>
+  <div class="module-head">
+    <span class="module-code">
+      {/* Punto lleno: en el sello, la entidad concreta. Un proyecto lo es. */}
+      <span class="mark-node" aria-hidden="true"></span>
+      {pad(index + 1)}
+    </span>
+    <span class="module-state">{copy[project.data.status]}</span>
+  </div>
+
+  <ProjectBuildSketch status={project.data.status} areaCount={project.data.researchAreas.length} />
+
+  <h3 class="module-title">
+    <a href={href}>{project.data.title}</a>
+  </h3>
+  <p class="module-body">{project.data.summary}</p>
+
+  {
+    project.data.researchAreas.length > 0 && (
+      <ul class="module-chips" aria-label={copy.crossing}>
+        {project.data.researchAreas.map((area) => (
+          <li>
+            <span class="mark-ring" aria-hidden="true" />
+            {areaNames.get(area) ?? area}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  <div class="module-foot">
+    <dl class="register">
+      <div>
+        <dt>{copy.crossing}</dt>
+        <span class="leader" aria-hidden="true"></span>
+        <dd>{pad(project.data.researchAreas.length)}</dd>
+      </div>
+      {
+        project.data.members.length > 0 && (
+          <div>
+            <dt>
+              <UsersRound size={11} stroke-width={2} aria-hidden="true" />
+              {copy.team}
+            </dt>
+            <span class="leader" aria-hidden="true" />
+            <dd>{pad(project.data.members.length)}</dd>
+          </div>
+        )
+      }
+      {
+        project.data.startDate && (
+          <div>
+            <dt>{copy.year}</dt>
+            <span class="leader" aria-hidden="true" />
+            <dd>
+              <time datetime={project.data.startDate}>{project.data.startDate.slice(0, 4)}</time>
+            </dd>
+          </div>
+        )
+      }
+    </dl>
+  </div>
+
+  <span class="module-action" aria-hidden="true">
+    {t.project}
+    <ArrowRight size={15} />
+  </span>
+</article>
+
+<style>
+  .module-title a::after {
+    position: absolute;
+    z-index: 4;
+    inset: 0;
+    content: '';
+  }
+
+  .project-card:has(.module-title a:focus-visible) {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  .register dt {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .module-action {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .module-action :global(svg) {
+    transition: transform var(--motion-fast) ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .project-card:hover .module-action :global(svg) {
+      transform: translateX(0.25rem);
+    }
+  }
+</style>

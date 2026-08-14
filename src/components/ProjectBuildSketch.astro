@@ -1,0 +1,185 @@
+---
+interface Props {
+  status: 'active' | 'completed' | 'planned' | 'archived';
+  areaCount: number;
+}
+
+const { status, areaCount } = Astro.props;
+const areaNodes = Array.from({ length: areaCount }, (_, index) => {
+  if (areaCount === 1) return 45;
+  return 20 + (index * 50) / (areaCount - 1);
+});
+const branchStart = areaNodes[0] ?? 45;
+const branchEnd = areaNodes.at(-1) ?? 45;
+---
+
+<div class="project-build-sketch" aria-hidden="true">
+  <svg viewBox="0 0 360 90" role="presentation" focusable="false">
+    <g class="construction">
+      <path d="M0 18H360M0 45H360M0 72H360"></path>
+      <path d="M45 0V90M90 0V90M135 0V90M180 0V90M225 0V90M270 0V90M315 0V90"></path>
+    </g>
+
+    <g class="drawing">
+      <g class="source-module">
+        <path d="M18 17h78v56H18zM18 29h78"></path>
+        <circle cx="27" cy="23" r="2" class="fill"></circle>
+        <path d="M29 40h44M29 49h55M29 58h34"></path>
+        <path d="m78 38 8 8-8 8"></path>
+      </g>
+
+      <path class="trace-base" d="M96 45h34"></path>
+      <path class="trace-flow" d="M96 45h34"></path>
+
+      <g class="build-stage">
+        <circle cx="151" cy="45" r="20"></circle>
+        <circle cx="151" cy="45" r="8"></circle>
+        <path d="M151 18v7M151 65v7M124 45h7M171 45h7M132 26l5 5M165 59l5 5M170 26l-5 5M137 59l-5 5"
+        ></path>
+      </g>
+
+      <path class="trace-base" d="M171 45h36"></path>
+      <path class="trace-flow delay" d="M171 45h36"></path>
+
+      <path class="branch" d={`M207 ${branchStart}V${branchEnd}`}></path>
+      {
+        areaNodes.map((y) => (
+          <g class="area-node">
+            <path d={`M207 ${y}h28`} />
+            <circle cx="242" cy={y} r="7" />
+            <circle cx="242" cy={y} r="2" class="fill" />
+          </g>
+        ))
+      }
+
+      <path class="trace-base" d="M249 45h24"></path>
+      <path class="trace-flow final" d="M249 45h24"></path>
+
+      <g class={`status-terminal status-${status}`}>
+        <path d="M273 17h69v56h-69zM280 24h55v34h-55zM288 65h39"></path>
+        {status === 'active' && <path class="status-mark" d="M286 43h7l5-10 8 20 7-15 6 5h10" />}
+        {status === 'completed' && <path class="status-mark" d="m290 41 11 10 23-24" />}
+        {
+          status === 'planned' && (
+            <>
+              <circle class="status-mark dashed" cx="307" cy="41" r="12" />
+              <path class="status-mark" d="M307 29v12l8 5" />
+            </>
+          )
+        }
+        {
+          status === 'archived' && (
+            <>
+              <circle class="status-mark" cx="297" cy="40" r="8" />
+              <circle class="status-mark" cx="319" cy="40" r="8" />
+              <path class="status-mark" d="M297 48h22M297 32h22" />
+            </>
+          )
+        }
+      </g>
+    </g>
+  </svg>
+</div>
+
+<style>
+  .project-build-sketch {
+    position: relative;
+    height: 4.8rem;
+    margin-top: 0.85rem;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    color: var(--primary);
+  }
+
+  .project-build-sketch::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-right: 1px solid var(--rule-strong);
+    border-bottom: 1px solid var(--rule-strong);
+    content: '';
+  }
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .construction,
+  .drawing,
+  .drawing g,
+  .drawing path,
+  .drawing circle {
+    fill: none;
+    stroke: currentcolor;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .construction {
+    opacity: 0.075;
+    stroke-width: 0.7;
+  }
+
+  .drawing,
+  .drawing g,
+  .drawing path,
+  .drawing circle {
+    stroke-width: 1.25;
+  }
+
+  .drawing .fill {
+    fill: currentcolor;
+  }
+
+  .build-stage,
+  .area-node,
+  .status-mark {
+    color: var(--module-accent, var(--primary-hover));
+  }
+
+  .trace-base {
+    opacity: 0.34;
+  }
+
+  .trace-flow {
+    color: var(--module-accent, var(--primary-hover));
+    stroke-dasharray: 34;
+    stroke-dashoffset: 34;
+    stroke-width: 2;
+    transition: stroke-dashoffset 560ms var(--ease-out);
+  }
+
+  .trace-flow.delay {
+    transition-delay: 90ms;
+  }
+
+  .trace-flow.final {
+    transition-delay: 180ms;
+  }
+
+  .status-planned > path:first-child,
+  .status-planned .dashed {
+    stroke-dasharray: 3 3;
+  }
+
+  .status-completed .status-mark {
+    stroke-width: 2;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    :global(.project-card:hover) .trace-flow {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .trace-flow {
+      stroke-dashoffset: 0;
+      transition: none;
+    }
+  }
+</style>
