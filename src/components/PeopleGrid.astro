@@ -1,0 +1,387 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import type { Locale } from '../data/site';
+import { getPersonPresentation } from '../utils/personPresentation';
+import { getPersonBadges } from '../utils/personBadges';
+import BadgeIcon from './BadgeIcon.astro';
+import PersonProgress from './PersonProgress.astro';
+
+interface Props {
+  people: CollectionEntry<'people'>[];
+  locale: Locale;
+}
+
+const { people, locale } = Astro.props;
+const isEs = locale === 'es';
+
+// The first row sits above the fold, so those portraits are fetched immediately
+// instead of waiting on a lazy request; everything below stays lazy.
+const EAGER_PORTRAITS = 6;
+
+/**
+ * Editorial portrait adjustments approved in DESIGN.md §11. These are content
+ * exceptions, not component variants: `scale` fills a frame where the subject
+ * sits too small, `position` compensates the vertical framing of the original.
+ */
+const portraitAdjustments: Record<string, { position?: string; scale?: number }> = {
+  'erit-santiago-arenas-rangel': { position: 'center 12%', scale: 1.1 },
+  'juan-david-ortiz-galvis': { position: 'center 20%', scale: 1.12 },
+  'juan-diego-castellanos-pinzon': { position: 'center 20%', scale: 1.12 },
+  'lucas-sumalave': { position: 'center 20%', scale: 1.12 },
+  'mariana-acero-velasquez': { position: 'center 20%', scale: 1.12 },
+  'ismael-manuel-castellano-galvan': { position: 'center 50%' },
+  'jhilmar-andrey-toloza-joya': { position: 'center 20%' },
+  'roland-duvan-lizarazo-calderon': { position: 'center 38%' },
+};
+
+const portraitStyle = (slug: string) => {
+  const adjustment = portraitAdjustments[slug];
+  if (!adjustment) return undefined;
+  return [
+    adjustment.position && `object-position: ${adjustment.position}`,
+    adjustment.scale && `transform: scale(${adjustment.scale})`,
+  ]
+    .filter(Boolean)
+    .join('; ');
+};
+---
+
+<div class:list={['person-grid', { single: people.length === 1 }]}>
+  {
+    people.map((person, index) => {
+      const presentation = getPersonPresentation(person.data, locale);
+      const badges = getPersonBadges(person.data, locale).slice(0, 4);
+      const cardStyle = `${presentation.themeStyle}; ${presentation.programStyle}`;
+      const profilePath = isEs
+        ? `/integrantes/${person.data.routeSlug}/`
+        : `/en/people/${person.data.routeSlug}/`;
+
+      return (
+        <article
+          class="lit"
+          style={cardStyle}
+          data-reveal
+          data-nucleus={presentation.nucleusKey}
+          data-program={presentation.programKey}
+        >
+          <PersonProgress person={person} locale={locale} variant="card-header" />
+
+          <div class="portrait-stage">
+            {person.data.photo ? (
+              <img
+                src={person.data.photo}
+                width="800"
+                height="800"
+                loading={index < EAGER_PORTRAITS ? 'eager' : 'lazy'}
+                fetchpriority={index < 3 ? 'high' : undefined}
+                decoding="async"
+                alt=""
+                style={portraitStyle(person.data.routeSlug)}
+              />
+            ) : (
+              <div class="portrait-placeholder" aria-hidden="true">
+                {person.data.name
+                  .split(' ')
+                  .map((part) => part[0])
+                  .slice(0, 2)
+                  .join('')}
+              </div>
+            )}
+
+            <span class="program-badge">
+              <strong>{presentation.programCode}</strong>
+              <span>{presentation.programLabel}</span>
+            </span>
+
+            {badges.length > 0 && (
+              <ul class="badge-pins">
+                {badges.map((badge) => (
+                  <li class="badge-pin" role="img" aria-label={badge.label} title={badge.label}>
+                    <BadgeIcon icon={badge.icon} size={13} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div class="card-copy">
+            <h3>
+              <a href={profilePath}>{person.data.name}</a>
+            </h3>
+            <p class="role">{person.data.roleLabel}</p>
+            {person.data.shortBio && <p class="description">{person.data.shortBio}</p>}
+          </div>
+
+          <PersonProgress person={person} locale={locale} variant="card-stats" />
+        </article>
+      );
+    })
+  }
+</div>
+
+<style>
+  .person-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: clamp(1.15rem, 2vw, 1.6rem);
+    margin-top: 1.35rem;
+  }
+
+  .person-grid.single {
+    grid-template-columns: minmax(0, 23rem);
+  }
+
+  .person-grid article {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgb(var(--theme-rgb) / 0.42);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow:
+      0 0.2rem 0.5rem rgba(8, 45, 87, 0.04),
+      0 1.3rem 3rem rgb(var(--theme-rgb) / 0.08);
+    isolation: isolate;
+    transition:
+      border-color var(--motion-standard) ease,
+      box-shadow var(--motion-standard) ease,
+      transform var(--motion-standard) ease;
+  }
+
+  .person-grid article::before {
+    position: absolute;
+    z-index: 4;
+    inset: 0.35rem;
+    border: 1px solid rgb(var(--theme-rgb) / 0.18);
+    border-radius: var(--radius-md);
+    content: '';
+    pointer-events: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .person-grid article:hover {
+      border-color: var(--theme-accent);
+      box-shadow:
+        0 0 0 1px rgb(var(--theme-rgb) / 0.08),
+        0 1.8rem 3.8rem rgb(var(--theme-rgb) / 0.18);
+      transform: translateY(-3px);
+    }
+  }
+
+  .person-grid article:active {
+    transform: scale(0.995);
+  }
+
+  /* The lit edge takes the strand colour, not the generic brand blue. */
+  .person-grid article.lit::after {
+    background: radial-gradient(
+      14rem 14rem at var(--mx, 50%) var(--my, 0%),
+      var(--theme-accent),
+      transparent 68%
+    );
+  }
+
+  .person-grid article:has(h3 a:focus-visible) {
+    outline: 3px solid var(--focus);
+    outline-offset: 4px;
+  }
+
+  .portrait-stage {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1.5;
+    margin: 0.6rem 0.6rem 0;
+    border: 1px solid rgb(var(--theme-rgb) / 0.35);
+    border-radius: var(--radius-md) var(--radius-md) var(--radius-sm) var(--radius-sm);
+    background:
+      radial-gradient(circle at 80% 18%, rgb(var(--theme-rgb) / 0.22), transparent 34%),
+      linear-gradient(145deg, white, var(--theme-soft));
+    box-shadow: inset 0 -3px 0 var(--program-accent);
+  }
+
+  .portrait-stage::before,
+  .portrait-stage::after {
+    position: absolute;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+  }
+
+  .portrait-stage::before {
+    inset: 0;
+    background:
+      linear-gradient(rgb(var(--theme-rgb) / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--theme-rgb) / 0.045) 1px, transparent 1px);
+    background-size: 1.15rem 1.15rem;
+  }
+
+  .portrait-stage::after {
+    right: -16%;
+    bottom: -30%;
+    width: 72%;
+    aspect-ratio: 1;
+    border: 1.5rem solid rgb(var(--theme-rgb) / 0.08);
+    border-radius: 50%;
+  }
+
+  .portrait-stage > img,
+  .portrait-placeholder {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .portrait-stage > img {
+    object-fit: cover;
+    object-position: center 28%;
+  }
+
+  .portrait-placeholder {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(155deg, var(--theme-soft), rgb(var(--theme-rgb) / 0.18));
+    color: var(--theme-deep);
+    font-size: clamp(3rem, 7vw, 5rem);
+    font-weight: 760;
+    letter-spacing: -0.08em;
+  }
+
+  .program-badge {
+    position: absolute;
+    z-index: 3;
+    bottom: 0.65rem;
+    left: 0.65rem;
+    display: inline-flex;
+    max-width: calc(100% - 1.3rem);
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid rgb(var(--program-rgb) / 0.35);
+    border-radius: 0;
+    background: var(--surface);
+    box-shadow: 0 0.45rem 1.3rem rgba(8, 45, 87, 0.14);
+    color: var(--program-accent);
+    font-size: 0.58rem;
+    font-weight: 760;
+    letter-spacing: 0.045em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .program-badge strong {
+    align-self: stretch;
+    background: var(--program-accent);
+    color: white;
+    padding: 0.52rem 0.55rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+  }
+
+  .program-badge span {
+    overflow: hidden;
+    padding: 0.52rem 0.6rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .badge-pins {
+    position: absolute;
+    z-index: 6;
+    top: 0.6rem;
+    right: 0.6rem;
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .badge-pin {
+    display: grid;
+    width: 1.7rem;
+    height: 1.7rem;
+    place-items: center;
+    border: 1px solid rgb(var(--theme-rgb) / 0.3);
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: 0 0.3rem 0.7rem rgba(8, 45, 87, 0.12);
+    color: var(--theme-deep);
+  }
+
+  .card-copy {
+    padding: 1.2rem 1.15rem 1.05rem;
+  }
+
+  .card-copy h3 {
+    min-height: 2.35em;
+    margin: 0;
+    color: var(--theme-deep);
+    font-size: clamp(1.08rem, 1.7vw, 1.25rem);
+    font-weight: 680;
+    letter-spacing: -0.035em;
+    line-height: 1.16;
+    text-wrap: balance;
+  }
+
+  .card-copy h3 a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .card-copy h3 a::after {
+    position: absolute;
+    z-index: 5;
+    inset: 0;
+    content: '';
+  }
+
+  .card-copy .role {
+    margin: 0.55rem 0 0;
+    color: var(--theme-deep);
+    font-size: 0.66rem;
+    font-weight: 760;
+    letter-spacing: 0.07em;
+    line-height: 1.35;
+    text-transform: uppercase;
+  }
+
+  .card-copy .description {
+    display: -webkit-box;
+    min-height: 4.3em;
+    overflow: hidden;
+    margin: 0.8rem 0 0;
+    -webkit-box-orient: vertical;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    -webkit-line-clamp: 3;
+    line-height: 1.48;
+  }
+
+  @media (max-width: 64rem) {
+    .person-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 42rem) {
+    .person-grid,
+    .person-grid.single {
+      grid-template-columns: minmax(0, 26rem);
+      justify-content: center;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .person-grid article {
+      transition: none;
+    }
+
+    .person-grid article:hover {
+      transform: none;
+    }
+  }
+</style>

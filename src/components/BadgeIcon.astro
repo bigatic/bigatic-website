@@ -1,0 +1,43 @@
+---
+import {
+  BadgeCheck,
+  Briefcase,
+  Compass,
+  FileText,
+  Flag,
+  FlaskConical,
+  Globe,
+  Layers,
+  Megaphone,
+  Microscope,
+  Network,
+  Users,
+} from '@lucide/astro';
+import type { BadgeIcon } from '../utils/personBadges';
+
+interface Props {
+  icon: BadgeIcon;
+  size?: number;
+}
+
+const { icon, size = 14 } = Astro.props;
+
+const icons = {
+  microscope: Microscope,
+  globe: Globe,
+  flask: FlaskConical,
+  users: Users,
+  briefcase: Briefcase,
+  layers: Layers,
+  'file-text': FileText,
+  compass: Compass,
+  'badge-check': BadgeCheck,
+  flag: Flag,
+  megaphone: Megaphone,
+  network: Network,
+} as const;
+
+const Icon = icons[icon];
+---
+
+<Icon size={size} stroke-width={2} aria-hidden="true" />

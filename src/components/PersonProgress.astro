@@ -1,0 +1,840 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import type { Locale } from '../data/site';
+import { getPersonPresentation } from '../utils/personPresentation';
+import { getPersonRanking, RANK_LABELS, rankTierStyle } from '../utils/personRanking';
+import { getPersonBadges, getUpcomingBadges } from '../utils/personBadges';
+import BadgeIcon from './BadgeIcon.astro';
+
+interface Props {
+  person: CollectionEntry<'people'>;
+  locale: Locale;
+  variant?: 'card-header' | 'card-stats' | 'profile';
+}
+
+const { person, locale, variant = 'card-header' } = Astro.props;
+const isEs = locale === 'es';
+const data = person.data;
+const presentation = getPersonPresentation(data, locale);
+const ranking = getPersonRanking(data);
+const { experiencePoints, level, resultCount, score } = ranking;
+const isStudent = data.role === 'student-researcher';
+const externalProfileCount = [
+  data.github,
+  data.orcid,
+  data.linkedin,
+  data.googleScholar,
+  data.researchGate,
+  data.website,
+].filter(Boolean).length;
+
+const copy = isEs
+  ? {
+      eyebrow: 'Rango BIGATIC',
+      score: 'Puntaje investigador',
+      studentNote:
+        'La XP externa se expresa en puntos por experiencias verificadas. Los resultados cuentan proyectos y publicaciones.',
+      facultyNote:
+        'El rango institucional conserva la jerarquía del rol. Las estadísticas resumen el perfil público.',
+      semester: 'Semestre',
+      externalXp: 'XP externa',
+      results: 'Resultados',
+      projects: 'Proyectos',
+      publications: 'Publicaciones',
+      areas: 'Áreas',
+      focuses: 'Focos',
+      profiles: 'Perfiles',
+      level: 'Nivel',
+      scale: 'Escala de rangos',
+      achievements: 'Logros documentados',
+      upcoming: 'Próximos logros',
+      upcomingNote: 'Se activan cuando el resultado queda publicado en el sitio.',
+    }
+  : {
+      eyebrow: 'BIGATIC rank',
+      score: 'Research profile score',
+      studentNote:
+        'External XP is shown as points from verified experience. Outputs count linked projects and publications.',
+      facultyNote:
+        'The institutional rank preserves role hierarchy. Statistics summarize the public profile.',
+      semester: 'Semester',
+      externalXp: 'External XP',
+      results: 'Outputs',
+      projects: 'Projects',
+      publications: 'Publications',
+      areas: 'Areas',
+      focuses: 'Focuses',
+      profiles: 'Profiles',
+      level: 'Level',
+      scale: 'Rank scale',
+      achievements: 'Documented achievements',
+      upcoming: 'Next achievements',
+      upcomingNote: 'These unlock once the result is published on the site.',
+    };
+
+const ranks = RANK_LABELS[locale];
+const rank = ranks[level - 1];
+const pad = (value: string | number) => String(value).padStart(2, '0');
+const levelCode = pad(level);
+const levelTotal = pad(ranks.length);
+const levelAria = isEs
+  ? `${copy.level} ${levelCode} de ${levelTotal}, ${rank}`
+  : `${copy.level} ${levelCode} of ${levelTotal}, ${rank}`;
+const accessibleSummary = `${copy.eyebrow}: ${copy.level} ${levelCode}, ${rank}. ${copy.score}: ${score} ${isEs ? 'de' : 'out of'} 100.`;
+const progressStyle = `--profile-progress: ${score}%`;
+const tierStyle = rankTierStyle(level);
+// Nucleus colour marks the strand; tier colour marks the rank. Both are kept.
+const presentationStyle = `${presentation.themeStyle}; ${presentation.programStyle}; ${tierStyle}`;
+const studentStats = [
+  [copy.semester, data.academicSemester ?? '--'],
+  [copy.externalXp, experiencePoints],
+  [copy.projects, data.projects.length],
+  [copy.publications, data.publications.length],
+] as const;
+const profileStats = [
+  [copy.areas, data.researchAreas.length],
+  [copy.focuses, data.researchInterests.length + (data.primaryResearchArea ? 1 : 0)],
+  [copy.profiles, externalProfileCount],
+  [copy.results, resultCount],
+] as const;
+const cardStats = isStudent
+  ? [studentStats[0], studentStats[1], [copy.results, resultCount] as const]
+  : profileStats.slice(0, 3);
+const detailStats = isStudent ? studentStats : profileStats;
+const badges = getPersonBadges(data, locale);
+const upcomingBadges = getUpcomingBadges(data, locale);
+---
+
+{
+  variant === 'card-header' ? (
+    <header
+      class="card-rank"
+      style={`${presentation.themeStyle}; ${tierStyle}`}
+      aria-label={accessibleSummary}
+    >
+      <span class="level-medallion" aria-hidden="true">
+        <small>LVL</small>
+        <strong>{levelCode}</strong>
+      </span>
+      <span class="rank-copy">
+        <small>{copy.eyebrow}</small>
+        <strong>{rank}</strong>
+      </span>
+      <span class="team-chip">{presentation.nucleusLabel}</span>
+    </header>
+  ) : variant === 'card-stats' ? (
+    <footer class="card-performance" style={`${presentation.themeStyle}; ${tierStyle}`}>
+      <div class="score-row">
+        <span>{copy.score}</span>
+        <strong>
+          {score}
+          <small>/100</small>
+        </strong>
+      </div>
+      <div class="compact-meter" aria-hidden="true">
+        <span style={progressStyle} />
+      </div>
+      <dl class="compact-stats">
+        {cardStats.map(([label, value]) => (
+          <div>
+            <dt>{label}</dt>
+            <dd>{pad(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    </footer>
+  ) : (
+    <section
+      class="rank-sheet chassis"
+      style={presentationStyle}
+      aria-labelledby={`profile-rank-${data.routeSlug}`}
+      data-reveal
+    >
+      <div class="module-bar sheet-bar">
+        <span class="bar-mark" aria-hidden="true" />
+        <span class="scale" aria-hidden="true" />
+        <span class="mono-label sheet-tag">{copy.eyebrow}</span>
+      </div>
+
+      <header class="sheet-head">
+        {/* El medallon lleva la cifra; su etiqueta accesible evita repetirla en texto. */}
+        <span class="level-medallion" role="img" aria-label={levelAria}>
+          <small>LVL</small>
+          <strong>{levelCode}</strong>
+        </span>
+        <h2 id={`profile-rank-${data.routeSlug}`}>{rank}</h2>
+        <div class="sheet-chips">
+          <span class="team-chip">{presentation.nucleusLabel}</span>
+          <span class="program-chip">
+            <strong>{presentation.programCode}</strong>
+            {presentation.programLabel}
+          </span>
+        </div>
+      </header>
+
+      <div class="sheet-meter">
+        <div class="meter-head">
+          <span class="mono-label">{copy.score}</span>
+          <strong>
+            {pad(score)}
+            <small>/100</small>
+          </strong>
+        </div>
+        <div
+          class="meter-track"
+          role="progressbar"
+          aria-label={copy.score}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow={score}
+        >
+          <span class="meter-fill" style={progressStyle} />
+        </div>
+        {/* Escala graduada: los cinco tramos del sistema, iguales para todo el mundo. */}
+        <ol class="meter-zones" aria-hidden="true">
+          {ranks.map((_, index) => (
+            <li class:list={{ reached: index < level }}>{pad(index + 1)}</li>
+          ))}
+        </ol>
+        <p class="meter-note">{isStudent ? copy.studentNote : copy.facultyNote}</p>
+      </div>
+
+      <dl class="sheet-stats">
+        {detailStats.map(([label, value]) => (
+          <div>
+            <dt>{label}</dt>
+            <dd>{pad(value)}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {(badges.length > 0 || upcomingBadges.length > 0) && (
+        <div class="sheet-log">
+          {badges.length > 0 && (
+            <section class="log-group">
+              <div class="module-bar log-head">
+                <h3>{copy.achievements}</h3>
+                <span class="scale" aria-hidden="true" />
+                <span class="log-count">{pad(badges.length)}</span>
+              </div>
+              <ul>
+                {badges.map((badge) => (
+                  <li>
+                    <span class="log-icon">
+                      <BadgeIcon icon={badge.icon} size={15} />
+                    </span>
+                    <strong>{badge.label}</strong>
+                    <p>{badge.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {upcomingBadges.length > 0 && (
+            <section class="log-group locked">
+              <div class="module-bar log-head">
+                <h3>{copy.upcoming}</h3>
+                <span class="scale" aria-hidden="true" />
+                <span class="log-count">{pad(upcomingBadges.length)}</span>
+              </div>
+              <ul>
+                {upcomingBadges.map((badge) => (
+                  <li>
+                    <span class="log-icon">
+                      <BadgeIcon icon={badge.icon} size={15} />
+                    </span>
+                    <strong>{badge.label}</strong>
+                    {/* Sin registro todavia: el sistema imprime el vacio, no un cero. */}
+                    <span class="log-state" aria-hidden="true">
+                      --
+                    </span>
+                    <p>{badge.detail}</p>
+                  </li>
+                ))}
+              </ul>
+              <p class="log-note">{copy.upcomingNote}</p>
+            </section>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+<style>
+  /* ---------- Tarjeta del directorio ---------- */
+
+  .card-rank {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    border-bottom: 1px solid rgb(var(--theme-rgb) / 0.25);
+    background: linear-gradient(115deg, var(--theme-soft), rgba(255, 255, 255, 0.94) 62%);
+    padding: 0.85rem 0.9rem 0.8rem;
+  }
+
+  /* Medallon de nivel: unica geometria octogonal del sistema. */
+  .level-medallion {
+    display: grid;
+    place-content: center;
+    place-items: center;
+    clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
+    background: linear-gradient(150deg, var(--tier-accent) -30%, var(--tier-deep) 62%);
+    color: white;
+    line-height: 1;
+  }
+
+  .level-medallion small {
+    color: rgba(255, 255, 255, 0.76);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+  }
+
+  .level-medallion strong {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .card-rank .level-medallion {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .card-rank .level-medallion small {
+    font-size: 0.44rem;
+  }
+
+  .card-rank .level-medallion strong {
+    margin-top: 0.14rem;
+    font-size: 0.88rem;
+  }
+
+  .rank-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.18rem;
+  }
+
+  .rank-copy small {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  /* El nombre del rango es un estado del sistema: mono, nunca sans. */
+  .rank-copy strong {
+    overflow: hidden;
+    color: var(--tier-deep);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .team-chip,
+  .program-chip {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .team-chip {
+    overflow: hidden;
+    max-width: 8.4rem;
+    background: var(--theme-deep);
+    color: white;
+    padding: 0.48rem 0.62rem;
+    font-size: 0.53rem;
+    letter-spacing: 0.055em;
+    text-overflow: ellipsis;
+  }
+
+  .card-performance {
+    margin-top: auto;
+    border-top: 1px solid rgb(var(--theme-rgb) / 0.24);
+    background:
+      linear-gradient(rgb(var(--theme-rgb) / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--theme-rgb) / 0.035) 1px, transparent 1px), #f9fbfd;
+    background-size: 0.85rem 0.85rem;
+    padding: 0.9rem 1rem 1rem;
+  }
+
+  .score-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--primary);
+  }
+
+  .score-row > span {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .score-row > strong {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .score-row small {
+    color: var(--text-muted);
+    font-size: 0.5rem;
+    font-weight: 400;
+  }
+
+  .compact-meter {
+    overflow: hidden;
+    height: 0.25rem;
+    margin-top: 0.45rem;
+    background: rgb(var(--theme-rgb) / 0.13);
+  }
+
+  .compact-meter span {
+    display: block;
+    width: var(--profile-progress);
+    height: 100%;
+    background: linear-gradient(90deg, var(--tier-deep), var(--tier-accent));
+    transform-origin: left;
+    animation: meter-in 240ms var(--ease-out) both;
+  }
+
+  .compact-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0.75rem 0 0;
+  }
+
+  .compact-stats div {
+    display: grid;
+    justify-items: center;
+    gap: 0.1rem;
+    min-width: 0;
+    padding-inline: 0.45rem;
+  }
+
+  .compact-stats div + div {
+    border-left: 1px solid rgb(var(--theme-rgb) / 0.2);
+  }
+
+  .compact-stats dt {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .compact-stats dd {
+    margin: 0;
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 0.98rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  /* ---------- Hoja de rango del perfil ---------- */
+
+  /*
+   * El expediente de una persona leido como aparato: cabecera con insignia,
+   * escala de puntaje graduada en los cinco tramos del sistema, cuatro cifras
+   * de igual ancho y el registro de logros. Sin explicaciones individuales.
+   */
+  .rank-sheet {
+    --sheet-pad: clamp(1rem, 2.6vw, 1.5rem);
+    --chassis-mark: var(--tier-deep);
+
+    margin-top: clamp(2.25rem, 5vw, 3.5rem);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--tier-accent);
+    background:
+      linear-gradient(rgb(var(--theme-rgb) / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--theme-rgb) / 0.035) 1px, transparent 1px), var(--surface);
+    background-size: 1rem 1rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .sheet-bar {
+    padding: 0.85rem var(--sheet-pad) 0;
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--tier-accent);
+    border-left: 2px solid var(--tier-accent);
+  }
+
+  .sheet-tag {
+    flex: none;
+    color: var(--tier-deep);
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+
+  .sheet-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    padding: 1rem var(--sheet-pad) 1.25rem;
+  }
+
+  .sheet-head .level-medallion {
+    width: 3.5rem;
+    height: 3.5rem;
+    flex: none;
+  }
+
+  .sheet-head .level-medallion small {
+    font-size: 0.48rem;
+  }
+
+  .sheet-head .level-medallion strong {
+    margin-top: 0.16rem;
+    font-size: 1.05rem;
+  }
+
+  /* El rango es un estado calculado, no un titular editorial: va en mono. */
+  .sheet-head h2 {
+    flex: 1 1 8rem;
+    min-width: 0;
+    margin: 0;
+    color: var(--tier-deep);
+    font-family: var(--font-mono);
+    font-size: clamp(1rem, 2.4vw, 1.3rem);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .sheet-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .sheet-chips .team-chip {
+    max-width: 100%;
+    font-size: 0.55rem;
+    letter-spacing: 0.07em;
+  }
+
+  .program-chip {
+    gap: 0.42rem;
+    border: 1px solid rgb(var(--program-rgb) / 0.32);
+    background: var(--program-soft);
+    color: var(--program-accent);
+    padding: 0.45rem 0.6rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.055em;
+  }
+
+  .program-chip strong {
+    font-size: 0.58rem;
+    letter-spacing: 0.09em;
+  }
+
+  .sheet-meter {
+    border-top: 1px solid var(--border);
+    padding: 1.15rem var(--sheet-pad) 1.25rem;
+  }
+
+  .meter-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .meter-head .mono-label {
+    font-size: 0.62rem;
+  }
+
+  .meter-head strong {
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .meter-head small {
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    font-weight: 400;
+  }
+
+  .meter-track {
+    position: relative;
+    overflow: hidden;
+    height: 0.5rem;
+    margin-top: 0.65rem;
+    box-shadow: inset 0 0 0 1px var(--border);
+    background: var(--surface-muted);
+  }
+
+  /* Los cuatro cortes de tramo dividen la barra en la misma escala del sistema. */
+  .meter-track::after {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(20% - 1px),
+      var(--surface) calc(20% - 1px) 20%
+    );
+    content: '';
+  }
+
+  .meter-fill {
+    display: block;
+    width: var(--profile-progress);
+    height: 100%;
+    background: linear-gradient(90deg, var(--tier-deep), var(--tier-accent));
+    transform-origin: left;
+    animation: meter-in 240ms var(--ease-out) both;
+  }
+
+  .meter-zones {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin: 0.4rem 0 0;
+    padding: 0;
+    color: var(--rule-strong);
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    list-style: none;
+    text-align: center;
+  }
+
+  .meter-zones .reached {
+    color: var(--tier-deep);
+  }
+
+  .meter-note {
+    max-width: 56ch;
+    margin: 0.85rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    line-height: 1.5;
+  }
+
+  .sheet-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .sheet-stats > div {
+    min-width: 0;
+    padding: 0.9rem var(--sheet-pad) 1rem;
+  }
+
+  .sheet-stats > div + div {
+    border-left: 1px solid var(--border);
+  }
+
+  .sheet-stats dt {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .sheet-stats dd {
+    margin: 0.3rem 0 0;
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+
+  .sheet-log {
+    border-top: 1px solid var(--border);
+  }
+
+  .log-group {
+    padding: 1.15rem var(--sheet-pad) 1.35rem;
+  }
+
+  .log-group + .log-group {
+    border-top: 1px solid var(--border);
+  }
+
+  .log-head h3 {
+    flex: none;
+    margin: 0;
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .log-count {
+    flex: none;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+  }
+
+  .log-group ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 0.9rem 1.5rem;
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .log-group li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.15rem 0.65rem;
+    min-width: 0;
+  }
+
+  .log-icon {
+    display: grid;
+    width: 1.85rem;
+    height: 1.85rem;
+    grid-row: span 2;
+    place-items: center;
+    border: 1px solid rgb(var(--theme-rgb) / 0.3);
+    background: var(--theme-soft);
+    color: var(--theme-deep);
+  }
+
+  .log-group strong {
+    min-width: 0;
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .log-group li p {
+    grid-column: 2 / -1;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    line-height: 1.45;
+  }
+
+  .log-state {
+    color: var(--rule-strong);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+  }
+
+  .log-group.locked .log-icon {
+    border-style: dashed;
+    border-color: var(--rule-strong);
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .log-group.locked strong {
+    color: var(--text-muted);
+  }
+
+  .log-note {
+    max-width: 56ch;
+    margin: 0.9rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    line-height: 1.45;
+  }
+
+  @keyframes meter-in {
+    from {
+      transform: scaleX(0);
+    }
+  }
+
+  @media (max-width: 34rem) {
+    .card-rank {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .card-rank .team-chip {
+      grid-column: 2;
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .sheet-chips {
+      flex-basis: 100%;
+    }
+
+    .sheet-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sheet-stats > div:nth-child(2n + 1) {
+      border-left: 0;
+    }
+
+    .sheet-stats > div:nth-child(n + 3) {
+      border-top: 1px solid var(--border);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .compact-meter span,
+    .meter-fill {
+      animation: none;
+    }
+  }
+</style>

@@ -1,0 +1,166 @@
+---
+import type { Locale } from '../data/site';
+import { RANK_LABELS, rankTierStyle } from '../utils/personRanking';
+
+interface Props {
+  locale: Locale;
+  /** `compact` for the directory legend, `full` for the recruitment path. */
+  variant?: 'compact' | 'full';
+}
+
+const { locale, variant = 'compact' } = Astro.props;
+const ranks = RANK_LABELS[locale];
+---
+
+<ol class:list={['rank-ladder', variant]}>
+  {
+    ranks.map((label, index) => (
+      <li style={rankTierStyle(index + 1)}>
+        <span class="tier-medallion" aria-hidden="true">
+          <small>LVL</small>
+          <strong>{String(index + 1).padStart(2, '0')}</strong>
+        </span>
+        <span class="tier-name">{label}</span>
+      </li>
+    ))
+  }
+</ol>
+
+<style>
+  .rank-ladder {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .rank-ladder li {
+    position: relative;
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    gap: 0.6rem;
+    text-align: center;
+  }
+
+  /* Connector track: reads as one continuous progression, not five chips. */
+  .rank-ladder li::before {
+    position: absolute;
+    z-index: 0;
+    top: var(--connector-top);
+    right: 50%;
+    left: -50%;
+    height: 2px;
+    background: linear-gradient(90deg, rgb(var(--tier-rgb) / 0.15), rgb(var(--tier-rgb) / 0.5));
+    content: '';
+  }
+
+  .rank-ladder li:first-child::before {
+    display: none;
+  }
+
+  .tier-medallion {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-content: center;
+    place-items: center;
+    clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
+    background: linear-gradient(150deg, var(--tier-deep), var(--tier-accent));
+    color: white;
+    line-height: 1;
+  }
+
+  .tier-medallion small {
+    color: rgba(255, 255, 255, 0.72);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+  }
+
+  .tier-medallion strong {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .tier-name {
+    color: var(--tier-deep);
+    font-weight: 680;
+    line-height: 1.25;
+  }
+
+  /* Compact: directory legend */
+  .compact {
+    gap: 0.5rem;
+  }
+
+  .compact li {
+    --connector-top: 1.15rem;
+  }
+
+  .compact .tier-medallion {
+    width: 2.3rem;
+    height: 2.3rem;
+    box-shadow: 0 0.3rem 0.7rem rgb(var(--tier-rgb) / 0.28);
+  }
+
+  .compact .tier-medallion small {
+    font-size: 0.38rem;
+  }
+
+  .compact .tier-medallion strong {
+    margin-top: 0.1rem;
+    font-size: 0.74rem;
+  }
+
+  .compact .tier-name {
+    font-size: 0.72rem;
+  }
+
+  /* Full: recruitment path */
+  .full {
+    gap: 0.75rem;
+  }
+
+  .full li {
+    --connector-top: 1.6rem;
+  }
+
+  .full .tier-medallion {
+    width: 3.2rem;
+    height: 3.2rem;
+    box-shadow: 0 0.45rem 1.1rem rgb(var(--tier-rgb) / 0.3);
+  }
+
+  .full .tier-medallion small {
+    font-size: 0.46rem;
+  }
+
+  .full .tier-medallion strong {
+    margin-top: 0.14rem;
+    font-size: 0.95rem;
+  }
+
+  .full .tier-name {
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 46rem) {
+    .rank-ladder {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem 0.75rem;
+    }
+
+    .rank-ladder li::before {
+      display: none;
+    }
+  }
+
+  @media (max-width: 26rem) {
+    .rank-ladder {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
