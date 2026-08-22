@@ -1,0 +1,204 @@
+---
+import { ArrowRight } from '@lucide/astro';
+import type { CollectionEntry } from 'astro:content';
+import type { Locale } from '../data/site';
+import { getUi } from '../i18n/ui';
+import { formatDate } from '../utils/content';
+
+interface Props {
+  item: CollectionEntry<'news'>;
+  locale: Locale;
+}
+
+const { item, locale } = Astro.props;
+const t = getUi(locale).news;
+const href =
+  locale === 'es' ? `/actualidad/${item.data.routeSlug}/` : `/en/news/${item.data.routeSlug}/`;
+---
+
+<article class:list={['news-card chassis', { 'no-image': !item.data.image }]} data-reveal>
+  {
+    item.data.image && (
+      <div class="visual">
+        <img
+          src={item.data.image}
+          width={item.data.imageWidth}
+          height={item.data.imageHeight}
+          alt={item.data.imageAlt}
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+    )
+  }
+  <div class="news-copy">
+    <div class="meta">
+      <time class="mono" datetime={item.data.date}>{formatDate(item.data.date, locale)}</time>
+      {item.data.tags[0] && <span class="mono-label">{item.data.tags[0]}</span>}
+    </div>
+    <h3>
+      <a href={href}>{item.data.title}</a>
+    </h3>
+    <p>{item.data.summary}</p>
+    <span class="module-action" aria-hidden="true">
+      {t.readNews}
+      <ArrowRight size={15} />
+    </span>
+  </div>
+</article>
+
+<style>
+  /* Mismo chasis que las fichas de area y proyecto: un solo catalogo. */
+  .news-card {
+    --module-accent: var(--primary-hover);
+    position: relative;
+    display: grid;
+    min-height: 21rem;
+    grid-template-columns: minmax(10rem, 0.42fr) minmax(0, 0.58fr);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    transition:
+      border-color var(--motion-standard) ease,
+      box-shadow var(--motion-standard) ease,
+      transform var(--motion-standard) ease;
+  }
+
+  .news-card::before {
+    position: absolute;
+    z-index: 2;
+    top: -1px;
+    right: -1px;
+    left: -1px;
+    height: 2px;
+    background: var(--module-accent);
+    content: '';
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .news-card:hover {
+      --chassis-mark: var(--module-accent);
+      border-color: var(--rule-strong);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-3px);
+    }
+
+    .news-card:hover .module-action :global(svg) {
+      transform: translateX(0.25rem);
+    }
+  }
+
+  .news-card:active {
+    transform: scale(0.997);
+  }
+
+  .news-card:has(h3 a:focus-visible) {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .news-card,
+    .news-card:hover {
+      transform: none;
+    }
+  }
+
+  .news-card.no-image {
+    grid-template-columns: 1fr;
+  }
+
+  .visual {
+    position: relative;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+    background: linear-gradient(150deg, var(--deep-2), var(--deep));
+  }
+
+  /* La imagen se saca del flujo para que la altura de la tarjeta la fije el
+     texto: un afiche vertical no debe estirar la fila. */
+  .visual img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+  }
+
+  .news-copy {
+    display: flex;
+    flex-direction: column;
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.85rem;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+  }
+
+  .meta .mono-label {
+    color: var(--primary-hover);
+    font-size: 0.6rem;
+  }
+
+  h3 {
+    margin: 1.5rem 0 0;
+    color: var(--primary);
+    font-size: clamp(1.4rem, 2.6vw, 1.85rem);
+    font-weight: 650;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+  }
+
+  h3 a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  h3 a::after {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    content: '';
+  }
+
+  p {
+    margin: 1rem 0 1.5rem;
+    color: var(--text-muted);
+  }
+
+  .module-action {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: auto;
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .module-action :global(svg) {
+    transition: transform var(--motion-fast) ease;
+  }
+
+  @media (max-width: 40rem) {
+    .news-card {
+      grid-template-columns: 1fr;
+    }
+
+    .visual {
+      min-height: 9rem;
+    }
+  }
+</style>

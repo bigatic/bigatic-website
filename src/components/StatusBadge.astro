@@ -1,0 +1,68 @@
+---
+interface Props {
+  status: string;
+  label: string;
+}
+
+const { status, label } = Astro.props;
+---
+
+<span class:list={['status-badge', status]}>{label}</span>
+
+<style>
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    width: fit-content;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-muted);
+    color: var(--primary);
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    padding: 0.48rem 0.68rem;
+    text-transform: uppercase;
+  }
+
+  .status-badge::before {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: #718096;
+    content: '';
+  }
+
+  .open,
+  .active {
+    border-color: #a9d8b5;
+    background: var(--accent-muted);
+    color: #075f29;
+  }
+
+  .open::before,
+  .active::before {
+    background: var(--accent);
+  }
+
+  .closed,
+  .archived,
+  .completed {
+    background: #f3f5f7;
+    color: #526070;
+  }
+
+  .upcoming,
+  .planned {
+    border-color: #bed2e5;
+    background: #eaf4fb;
+    color: #0a4c87;
+  }
+
+  .upcoming::before,
+  .planned::before {
+    background: #0b66bd;
+  }
+</style>

@@ -1,0 +1,325 @@
+---
+import { ArrowRight } from '@lucide/astro';
+import type { Locale } from '../data/site';
+import { route } from '../i18n/routes';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const copy =
+  locale === 'es'
+    ? {
+        inspect: 'Inspeccionar a BIT-01',
+        label: 'BIT-01 · Sonda de campo',
+        body: 'Señal estable. Observando proyectos, datos y prototipos del semillero.',
+        link: 'Abrir investigación',
+      }
+    : {
+        inspect: 'Inspect BIT-01',
+        label: 'BIT-01 · Field probe',
+        body: 'Signal stable. Observing the group’s projects, data, and prototypes.',
+        link: 'Open research',
+      };
+---
+
+<details class="bit-probe">
+  <summary aria-label={copy.inspect}>
+    <svg
+      class="probe-visual"
+      viewBox="0 0 220 220"
+      role="presentation"
+      focusable="false"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="bit-shell" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#d6c39b"></stop>
+          <stop offset="0.52" stop-color="#77806d"></stop>
+          <stop offset="1" stop-color="#263746"></stop>
+        </linearGradient>
+        <linearGradient id="bit-metal" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#b79555"></stop>
+          <stop offset="1" stop-color="#443c2d"></stop>
+        </linearGradient>
+        <radialGradient id="bit-eye">
+          <stop offset="0" stop-color="#f5c682"></stop>
+          <stop offset="0.45" stop-color="#e3a54c"></stop>
+          <stop offset="1" stop-color="#7a4a16"></stop>
+        </radialGradient>
+        <filter id="bit-shadow" x="-30%" y="-30%" width="160%" height="170%">
+          <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#10293d" flood-opacity="0.2"
+          ></feDropShadow>
+        </filter>
+      </defs>
+
+      <g class="probe" filter="url(#bit-shadow)">
+        <g class="dish">
+          <path
+            d="M67 43c15-17 38-24 55-16-3 22-17 42-38 51-12-8-18-21-17-35Z"
+            fill="#40515a"
+            stroke="#403a2d"
+            stroke-width="4"></path>
+          <path
+            d="M72 43c13-12 29-18 43-15-4 18-15 34-31 43"
+            fill="none"
+            stroke="#a88b55"
+            stroke-width="2"></path>
+          <path
+            d="m94 54 16-19M94 54l-22-9M94 54 83 72"
+            fill="none"
+            stroke="#a88b55"
+            stroke-width="1.5"></path>
+          <circle cx="94" cy="54" r="5" fill="#e3a54c" stroke="#403a2d" stroke-width="3"></circle>
+          <path d="m94 54 15-25" stroke="#403a2d" stroke-width="4" stroke-linecap="round"></path>
+          <circle cx="111" cy="25" r="4" fill="#e3a54c" stroke="#403a2d" stroke-width="2"></circle>
+        </g>
+
+        <g class="legs" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d="m82 145-23 23-8 27M105 149l1 27-15 24M136 145l26 20 12 29"
+            stroke="#403a2d"
+            stroke-width="12"></path>
+          <path
+            d="m82 145-23 23-8 27M105 149l1 27-15 24M136 145l26 20 12 29"
+            stroke="url(#bit-metal)"
+            stroke-width="7"></path>
+          <path d="M38 198h27M80 202h26M163 198h27" stroke="#403a2d" stroke-width="8"></path>
+          <path d="M39 196h25M81 200h24M164 196h25" stroke="#a88b55" stroke-width="3"></path>
+        </g>
+
+        <g class="sampler" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m62 116-25 9-15 18-4 21" stroke="#403a2d" stroke-width="10"></path>
+          <path d="m62 116-25 9-15 18-4 21" stroke="url(#bit-metal)" stroke-width="5"></path>
+          <circle cx="37" cy="125" r="6" fill="#a88b55" stroke="#403a2d" stroke-width="3"></circle>
+          <path d="m15 162 7 5-8 8" stroke="#403a2d" stroke-width="4"></path>
+        </g>
+
+        <path
+          d="M67 78h75l20 20v43l-19 14H74l-20-19V96Z"
+          fill="url(#bit-shell)"
+          stroke="#10293d"
+          stroke-width="4"></path>
+        <path
+          d="M73 84h61l20 17v33l-15 13H78l-16-15v-31Z"
+          fill="none"
+          stroke="#d6c39b"
+          stroke-opacity="0.55"
+          stroke-width="1.5"></path>
+        <path d="M77 78v-9h18v9M126 78V63" fill="none" stroke="#403a2d" stroke-width="5"></path>
+        <path d="M126 64V31" stroke="#403a2d" stroke-width="4" stroke-linecap="round"></path>
+        <circle cx="126" cy="27" r="5" fill="#e3a54c" stroke="#403a2d" stroke-width="2.5"></circle>
+
+        <g class="optic">
+          <circle cx="73" cy="112" r="18" fill="#1a2b38" stroke="#403a2d" stroke-width="5"></circle>
+          <circle cx="73" cy="112" r="10" fill="url(#bit-eye)" stroke="#a88b55" stroke-width="2"
+          ></circle>
+          <circle class="signal-core" cx="70" cy="109" r="3" fill="#fff0bd"></circle>
+        </g>
+
+        <rect x="101" y="96" width="42" height="28" fill="#142432" stroke="#403a2d" stroke-width="3"
+        ></rect>
+        <g stroke="#e3a54c" stroke-width="2">
+          <path d="M108 103h18M108 109h28M108 115h11M123 115h13"></path>
+        </g>
+        <path d="M99 136h45M107 143h29" stroke="#10293d" stroke-width="3" stroke-linecap="round"
+        ></path>
+        <circle cx="151" cy="103" r="4" fill="#08a32c" stroke="#10293d" stroke-width="2"></circle>
+        <path
+          d="M154 126c15 1 21 7 24 17"
+          fill="none"
+          stroke="#403a2d"
+          stroke-width="4"
+          stroke-linecap="round"></path>
+        <path
+          d="M178 143c4 8 2 14-4 20"
+          fill="none"
+          stroke="#a88b55"
+          stroke-width="2"
+          stroke-linecap="round"></path>
+      </g>
+    </svg>
+  </summary>
+  <div class="bit-log chassis">
+    <strong class="mono-label">{copy.label}</strong>
+    <p>{copy.body}</p>
+    <a href={route('research', locale)}>{copy.link}<ArrowRight size={14} aria-hidden="true" /></a>
+  </div>
+</details>
+
+<style>
+  .bit-probe {
+    position: absolute;
+    z-index: 5;
+    right: clamp(0.25rem, 1.5vw, 1.5rem);
+    bottom: -0.2rem;
+    width: clamp(7rem, 10vw, 9.5rem);
+  }
+
+  summary {
+    position: relative;
+    display: block;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .probe-visual {
+    width: 100%;
+    transform-origin: 52% 72%;
+    animation: bit-drift 6.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    transition: filter var(--motion-fast) ease;
+  }
+
+  summary:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .dish,
+  .sampler,
+  .signal-core {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .dish {
+    animation: bit-dish 5.2s ease-in-out infinite;
+  }
+
+  .sampler {
+    transform-origin: 100% 20%;
+    animation: bit-sampler 6.4s ease-in-out infinite;
+  }
+
+  .signal-core {
+    animation: bit-signal 2.8s ease-out infinite;
+  }
+
+  .bit-log {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% - 0.35rem);
+    width: min(17rem, calc(100vw - 2rem));
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: rgba(248, 246, 238, 0.97);
+    box-shadow: var(--shadow-md);
+    padding: 1rem 1.1rem;
+    animation: bit-log-in 180ms var(--ease-out) both;
+  }
+
+  .bit-log strong {
+    color: var(--primary-hover);
+    font-size: 0.58rem;
+  }
+
+  .bit-log p {
+    margin: 0.55rem 0 0.7rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .bit-log a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 600;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  @keyframes bit-drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+    48% {
+      transform: translate3d(-0.25rem, -0.45rem, 0) rotate(-1.2deg);
+    }
+    55% {
+      transform: translate3d(-0.2rem, -0.5rem, 0) rotate(-0.8deg);
+    }
+  }
+
+  @keyframes bit-signal {
+    0%,
+    72% {
+      opacity: 0.6;
+      transform: scale(0.82);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1.45);
+    }
+  }
+
+  @keyframes bit-dish {
+    0%,
+    100% {
+      transform: rotate(-1deg);
+    }
+    50% {
+      transform: rotate(3deg);
+    }
+  }
+
+  @keyframes bit-sampler {
+    0%,
+    66%,
+    100% {
+      transform: rotate(0deg);
+    }
+    74% {
+      transform: rotate(4deg);
+    }
+    82% {
+      transform: rotate(-2deg);
+    }
+  }
+
+  @keyframes bit-log-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.4rem) scale(0.98);
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    summary:hover .probe-visual {
+      filter: saturate(1.08) drop-shadow(0 0.6rem 0.6rem rgba(16, 41, 61, 0.12));
+      animation-play-state: paused;
+    }
+
+    .bit-log a:hover {
+      color: var(--primary-hover);
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .probe-visual,
+    .dish,
+    .sampler,
+    .signal-core,
+    .bit-log {
+      animation: none;
+    }
+  }
+
+  @media (max-width: 47.99rem) {
+    .bit-probe {
+      right: 0.25rem;
+      width: 6.5rem;
+    }
+  }
+</style>

@@ -1,0 +1,133 @@
+---
+import { Archive, ArrowRight, ArrowUpRight } from '@lucide/astro';
+
+interface Props {
+  title: string;
+  description: string;
+  href?: string;
+  linkLabel?: string;
+  target?: '_blank';
+  /** Deja que este titulo etiquete la seccion, en vez de repetirlo en un h2 oculto. */
+  headingId?: string;
+}
+
+const { title, description, href, linkLabel, target, headingId } = Astro.props;
+const isExternal = target === '_blank';
+const Arrow = isExternal ? ArrowUpRight : ArrowRight;
+---
+
+{/* Modulo del aparato sin contenido cargado: mismo chasis, cifra en cero. */}
+<div class="catalog-empty chassis">
+  <div class="module-bar" aria-hidden="true">
+    <span class="bar-mark"></span>
+    <span class="scale"></span>
+    <span class="tally mono-label">00</span>
+  </div>
+
+  <div class="empty-body">
+    <span class="bay" aria-hidden="true">
+      <Archive size={25} stroke-width={1.5} />
+    </span>
+    <div class="empty-copy">
+      <h2 id={headingId}>{title}</h2>
+      <p>{description}</p>
+    </div>
+    {
+      href && linkLabel && (
+        <a
+          class="button-secondary empty-action"
+          href={href}
+          target={target}
+          rel={isExternal ? 'noopener noreferrer' : undefined}
+        >
+          {linkLabel}
+          <Arrow size={16} aria-hidden="true" />
+        </a>
+      )
+    }
+  </div>
+</div>
+
+<style>
+  /* El canto superior queda gris: el modulo existe, pero no hay estado que declarar. */
+  .catalog-empty {
+    position: relative;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--rule-strong);
+    background: var(--surface);
+    padding: 1.15rem 1.25rem 1.35rem;
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .tally {
+    flex: none;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+
+  .empty-body {
+    display: grid;
+    min-height: 9rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(1.25rem, 4vw, 2.75rem);
+    padding-top: 1.6rem;
+  }
+
+  /* Bahia vacia: el hueco donde iria una ficha, encuadrado y a escuadra. */
+  .bay {
+    display: grid;
+    width: 3.5rem;
+    height: 3.5rem;
+    place-items: center;
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    color: var(--text-muted);
+  }
+
+  h2 {
+    margin: 0;
+    color: var(--primary);
+    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+    font-weight: 630;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  p {
+    max-width: 62ch;
+    margin: 0.7rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  @media (max-width: 42rem) {
+    .empty-body {
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: start;
+      gap: 1.25rem;
+    }
+
+    .empty-action {
+      grid-column: 1 / -1;
+      width: fit-content;
+    }
+  }
+
+  @media (max-width: 26rem) {
+    .empty-body {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

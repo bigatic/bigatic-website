@@ -1,0 +1,837 @@
+---
+import { getCollection } from 'astro:content';
+import type { Locale } from '../data/site';
+import { byOrder, inLocale, isPublished } from '../utils/content';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+
+/**
+ * Secuencia de entrada del home (DESIGN.md §21).
+ *
+ * Una sola cadena de ingeniería sobre un mismo banco de trabajo: código,
+ * arquitectura y pruebas, experimento y datos, y build. La cámara panea de una
+ * estación a la siguiente sin cortar, con escala constante, así que ningún
+ * objeto queda partido por el encuadre.
+ *
+ * Todo el taller se dibuja en SVG. No hay ilustración rasterizada: un dibujo
+ * técnico vectorial es más nítido, pesa menos, se puede alimentar con datos
+ * reales y tiene una procedencia verificable, que es lo que exige §4 para
+ * cualquier imagen de un grupo de investigación real.
+ *
+ * Las cifras que aparecen salen de las colecciones publicadas. Si una
+ * colección está vacía no se inventa nada: la línea no se imprime.
+ */
+const areas = (await getCollection('research')).filter(inLocale(locale)).sort(byOrder);
+const projects = (await getCollection('projects')).filter(inLocale(locale)).filter(isPublished);
+const people = (await getCollection('people')).filter(inLocale(locale)).filter(isPublished);
+
+const areaKeys = areas.map((area) => area.data.translationKey);
+const crossings = projects.reduce(
+  (total, project) =>
+    total + project.data.researchAreas.filter((key) => areaKeys.includes(key)).length,
+  0,
+);
+
+const pad = (value: number) => String(value).padStart(2, '0');
+
+// Barras del banco de datos: integrantes reales por área.
+const series = areas.map((area) => ({
+  label: area.data.shortName,
+  value: people.filter((person) => person.data.researchAreas.includes(area.data.translationKey))
+    .length,
+}));
+const peak = Math.max(1, ...series.map((entry) => entry.value));
+
+const copy = isEs
+  ? {
+      skip: 'Saltar la secuencia',
+      stations: ['Código', 'Arquitectura y pruebas', 'Experimento y datos', 'Build'],
+      prompt: 'bigatic build',
+      lines: [
+        `leer áreas ......... ${pad(areas.length)}`,
+        `leer proyectos ..... ${pad(projects.length)}`,
+        `leer integrantes ... ${pad(people.length)}`,
+        `resolver cruces .... ${pad(crossings)}`,
+      ],
+      ok: 'compilado',
+      checks: ['Esquema válido', 'Relaciones resueltas', 'Paridad ES / EN'],
+      plotTitle: 'Integrantes por área',
+      sheetKind: 'Ficha',
+      sheetTitle: 'Semillero de Investigación BIGATIC',
+      sheetFoot: 'Universidad de Santander',
+    }
+  : {
+      skip: 'Skip the sequence',
+      stations: ['Code', 'Architecture and tests', 'Experiment and data', 'Build'],
+      prompt: 'bigatic build',
+      lines: [
+        `read areas ......... ${pad(areas.length)}`,
+        `read projects ...... ${pad(projects.length)}`,
+        `read members ....... ${pad(people.length)}`,
+        `resolve crossings .. ${pad(crossings)}`,
+      ],
+      ok: 'compiled',
+      checks: ['Schema valid', 'Relations resolved', 'ES / EN parity'],
+      plotTitle: 'Members per area',
+      sheetKind: 'Record',
+      sheetTitle: 'BIGATIC Research Group',
+      sheetFoot: 'Universidad de Santander',
+    };
+
+/*
+ * Geometría del banco. Cada estación se dibuja en coordenadas locales alrededor
+ * de x=0 y se coloca con un `translate`, así que la separación es un solo
+ * número. El paso (500) es el mínimo que deja la estación vecina fuera de la
+ * ventana visible: a escala 1.42 la ventana mide unas 526 unidades de escena y
+ * la vecina empieza a 360 del centro. Así el recorrido es corto y ningún objeto
+ * queda partido por el borde. En proporciones muy anchas la viñeta apaga lo que
+ * pueda asomar.
+ */
+const STEP = 500;
+const FIRST = 340;
+const COUNT = 4;
+const VIEW = { w: FIRST * 2 + STEP * (COUNT - 1), h: 420 };
+const CAMERA_SCALE = 1.42;
+const centers = Array.from({ length: COUNT }, (_, index) => FIRST + index * STEP);
+const stations = centers.map(
+  (cx) =>
+    `translate(${(VIEW.w / 2 - CAMERA_SCALE * cx).toFixed(1)} ${(
+      VIEW.h / 2 -
+      CAMERA_SCALE * 205
+    ).toFixed(1)}) scale(${CAMERA_SCALE})`,
+);
+
+// Anillos del diagrama de arquitectura: un anillo hueco por área, en arco sobre
+// el nodo central. Coordenadas locales de la estación.
+const ringNodes = areas.map((_, index) => {
+  const angle = -Math.PI * 0.86 + (index / Math.max(areas.length - 1, 1)) * Math.PI * 0.72;
+  return { x: Math.cos(angle) * 92, y: 196 + Math.sin(angle) * 60 };
+});
+---
+
+{
+  /*
+   * Se renderiza oculto. Sin JavaScript el atributo `hidden` nunca se retira,
+   * así que la secuencia no existe y el home queda intacto: no puede convertirse
+   * en una puerta delante del contenido.
+   */
+}
+{
+  areas.length > 0 && (
+    <div
+      class="intro"
+      data-home-intro
+      data-frames={JSON.stringify(stations)}
+      data-names={JSON.stringify(copy.stations)}
+      hidden
+    >
+      <div class="intro-shell">
+        <p class="intro-station mono-label" data-intro-station>
+          {copy.stations[0]}
+        </p>
+
+        <svg
+          class="intro-stage"
+          viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="introScreen" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#123047" />
+              <stop offset="1" stop-color="#0a1d2c" />
+            </linearGradient>
+            <linearGradient id="introSheet" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ffffff" />
+              <stop offset="1" stop-color="#e6eef6" />
+            </linearGradient>
+          </defs>
+
+          <g class="camera" data-intro-camera transform={stations[0]}>
+            {/* Banco de trabajo: la superficie que sostiene la cadena entera. */}
+            <line class="bench" x1="0" y1="330" x2={VIEW.w} y2="330" />
+            <line class="bench-edge" x1="0" y1="336" x2={VIEW.w} y2="336" />
+
+            {/* 01 Código: el terminal monta las colecciones publicadas. */}
+            <g transform={`translate(${centers[0]} 0)`}>
+              <path class="cable" d={`M 150 318 H ${STEP - 150}`} />
+              <rect class="case" x="-140" y="96" width="280" height="196" />
+              <rect
+                class="screen"
+                x="-126"
+                y="110"
+                width="252"
+                height="152"
+                fill="url(#introScreen)"
+              />
+              <g class="scanlines">
+                {Array.from({ length: 19 }, (_, i) => (
+                  <line x1="-126" y1={114 + i * 8} x2="126" y2={114 + i * 8} />
+                ))}
+              </g>
+              <text class="term prompt" x="-114" y="132">
+                $ {copy.prompt}
+              </text>
+              {copy.lines.map((line, index) => (
+                <text class="term line" data-term-line={index} x="-114" y={152 + index * 20}>
+                  {line}
+                </text>
+              ))}
+              <text class="term ok" data-term-ok x="-114" y="240">
+                {copy.ok}
+              </text>
+              <rect class="caret" x="-114" y="248" width="9" height="2" />
+              <rect class="stand" x="-24" y="292" width="48" height="30" />
+              <rect class="foot" x="-60" y="322" width="120" height="8" />
+            </g>
+
+            {/* 02 Arquitectura y pruebas: el plano se dibuja como diagrama, y la
+                lista de comprobaciones vive en su propia banda para que los
+                trazos no se cruzcen con el texto. */}
+            <g transform={`translate(${centers[1]} 0)`}>
+              <path class="cable" d={`M 150 318 H ${STEP - 150}`} />
+              <rect class="sheet-pin" x="-140" y="86" width="280" height="212" />
+              <g class="grid">
+                {Array.from({ length: 15 }, (_, i) => (
+                  <line x1={-140 + i * 20} y1="86" x2={-140 + i * 20} y2="298" />
+                ))}
+                {Array.from({ length: 11 }, (_, i) => (
+                  <line x1="-140" y1={86 + i * 21.2} x2="140" y2={86 + i * 21.2} />
+                ))}
+              </g>
+              <text class="plate-label" x="-126" y="104">
+                {copy.stations[1]}
+              </text>
+              <g class="arch-links">
+                {ringNodes.map((node) => (
+                  <line data-arch-link x1="0" y1="196" x2={node.x} y2={node.y} />
+                ))}
+              </g>
+              {ringNodes.map((node) => (
+                <circle class="arch-ring" data-arch-ring cx={node.x} cy={node.y} r="8" />
+              ))}
+              <circle class="arch-hub" cx="0" cy="196" r="5" />
+              <line class="band-rule" x1="-126" y1="216" x2="126" y2="216" />
+              <g class="checks">
+                {copy.checks.map((check, index) => (
+                  <>
+                    <path
+                      class="tick"
+                      data-arch-tick={index}
+                      d={`M -122 ${234 + index * 21} l 6 6 l 11 -13`}
+                    />
+                    <text class="check-label" x="-96" y={239 + index * 21}>
+                      {check}
+                    </text>
+                  </>
+                ))}
+              </g>
+            </g>
+
+            {/* 03 Experimento y datos: integrantes reales por área. */}
+            <g transform={`translate(${centers[2]} 0)`}>
+              <path class="cable" d={`M 150 318 H ${STEP - 150}`} />
+              <rect class="case" x="-140" y="96" width="280" height="204" />
+              <rect class="plot-field" x="-124" y="112" width="248" height="176" />
+              <text class="plate-label light" x="-114" y="130">
+                {copy.plotTitle}
+              </text>
+              <line class="axis" data-axis-y x1="-106" y1="140" x2="-106" y2="226" />
+              <line class="axis" data-axis-x x1="-106" y1="226" x2="114" y2="226" />
+              {series.map((entry, index) => {
+                const height = Math.max(4, Math.round((entry.value / peak) * 72));
+                const x = -94 + index * 34;
+                return (
+                  <>
+                    <rect
+                      class="bar"
+                      data-bar={index}
+                      x={x}
+                      y={226 - height}
+                      width="18"
+                      height={height}
+                    />
+                    <text class="bar-value" data-bar-value={index} x={x + 9} y={220 - height}>
+                      {pad(entry.value)}
+                    </text>
+                    <text
+                      class="bar-label"
+                      data-bar-value={index}
+                      x={x + 9}
+                      y="234"
+                      transform={`rotate(-42 ${x + 9} 234)`}
+                    >
+                      {entry.label}
+                    </text>
+                  </>
+                );
+              })}
+              <rect class="stand" x="-22" y="300" width="44" height="22" />
+              <rect class="foot" x="-52" y="322" width="104" height="8" />
+            </g>
+
+            {/* 04 Build: el plotter imprime la ficha, y la ficha entrega el home. */}
+            <g transform={`translate(${centers[3]} 0)`}>
+              <rect class="case" x="-130" y="228" width="260" height="72" />
+              <line class="drum" x1="-116" y1="242" x2="116" y2="242" />
+              <rect class="carriage" data-intro-carriage x="-110" y="238" width="18" height="13" />
+              <g class="printed" data-intro-sheet>
+                <rect x="-88" y="80" width="176" height="152" fill="url(#introSheet)" />
+                <circle class="seal-ring" cx="0" cy="118" r="22" />
+                <circle class="seal-hub" cx="0" cy="118" r="3.4" />
+                <text class="sheet-kind" x="-72" y="162">
+                  {copy.sheetKind}
+                </text>
+                <text class="sheet-title" x="-72" y="184">
+                  BIGATIC
+                </text>
+                <line class="sheet-rule" x1="-72" y1="194" x2="72" y2="194" />
+                <text class="sheet-foot" x="-72" y="208">
+                  {copy.sheetFoot}
+                </text>
+                <text class="sheet-foot" x="-72" y="220">
+                  {pad(areas.length)} / {pad(projects.length)} / {pad(people.length)}
+                </text>
+              </g>
+              <rect class="foot" x="-50" y="300" width="100" height="8" />
+            </g>
+          </g>
+        </svg>
+
+        <button class="intro-skip" type="button" data-intro-skip>
+          {copy.skip}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+<script>
+  const intro = document.querySelector<HTMLElement>('[data-home-intro]');
+
+  if (intro) {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const params = new URLSearchParams(window.location.search);
+    const forced = params.get('intro') === '1';
+    const seen = (() => {
+      try {
+        return window.sessionStorage.getItem('bigatic-intro') === 'done';
+      } catch {
+        return false;
+      }
+    })();
+
+    // Con movimiento reducido se omite por completo. Ya vista en esta sesión,
+    // tampoco se repite: la navegación del sitio es recurrente.
+    if (reduce.matches || (seen && !forced)) {
+      intro.remove();
+    } else {
+      const camera = intro.querySelector<SVGGElement>('[data-intro-camera]');
+      const stationOut = intro.querySelector<HTMLElement>('[data-intro-station]');
+      const skip = intro.querySelector<HTMLButtonElement>('[data-intro-skip]');
+      const frames = JSON.parse(intro.dataset.frames ?? '[]') as string[];
+      const names = JSON.parse(intro.dataset.names ?? '[]') as string[];
+      const timers: number[] = [];
+      let closed = false;
+
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        timers.forEach((id) => window.clearTimeout(id));
+        try {
+          window.sessionStorage.setItem('bigatic-intro', 'done');
+        } catch {
+          // Modo privado: la secuencia se repetirá, no es un fallo.
+        }
+        intro.setAttribute('data-exit', '');
+        document.documentElement.classList.remove('intro-locked');
+        window.setTimeout(() => intro.remove(), 700);
+      };
+
+      const at = (delay: number, action: () => void) =>
+        timers.push(window.setTimeout(action, delay));
+
+      const step = (index: number) => {
+        if (camera && frames[index]) camera.setAttribute('transform', frames[index]);
+        intro.dataset.step = String(index);
+        // El nombre entra a mitad del paneo. Cambiarlo al inicio haría que el
+        // rótulo nombrara una estación que aún no está en pantalla.
+        if (stationOut && names[index]) {
+          stationOut.dataset.swap = '';
+          at(300, () => {
+            stationOut.textContent = names[index];
+            delete stationOut.dataset.swap;
+          });
+        }
+      };
+
+      skip?.addEventListener('click', close);
+      document.addEventListener('keydown', (event) => {
+        if (['Escape', 'Enter', ' ', 'Spacebar'].includes(event.key)) close();
+      });
+
+      document.documentElement.classList.add('intro-locked');
+      intro.hidden = false;
+
+      // Tope duro: si algo falla a mitad de la secuencia, la página se libera
+      // igual. El contenido no puede quedar detrás de una animación.
+      window.setTimeout(close, 9000);
+
+      step(0);
+      at(1300, () => step(1));
+      at(2700, () => step(2));
+      at(4100, () => step(3));
+      at(6400, close);
+    }
+  }
+</script>
+
+<style>
+  .intro {
+    position: fixed;
+    z-index: 90;
+    inset: 0;
+    display: grid;
+    overflow: hidden;
+    place-items: center;
+    background:
+      radial-gradient(120% 100% at 78% 6%, var(--deep-3) 0%, transparent 58%),
+      radial-gradient(90% 80% at 8% 96%, var(--deep-2) 0%, transparent 62%), var(--deep);
+    transition:
+      opacity 620ms var(--ease-out),
+      transform 620ms var(--ease-out);
+  }
+
+  .intro[hidden] {
+    display: none;
+  }
+
+  .intro-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .intro-shell::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background: radial-gradient(
+      118% 92% at 50% 50%,
+      transparent 0 46%,
+      rgba(8, 25, 42, 0.55) 74%,
+      var(--deep) 100%
+    );
+    content: '';
+    pointer-events: none;
+  }
+
+  .intro-stage {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* La cámara solo se desplaza. La escala es fija, así que ninguna estación
+     puede quedar recortada por el encuadre. */
+  .camera {
+    transition: transform 760ms cubic-bezier(0.77, 0, 0.175, 1);
+  }
+
+  .bench {
+    stroke: var(--deep-rule);
+    stroke-width: 2;
+  }
+
+  .bench-edge {
+    stroke: rgba(227, 165, 76, 0.18);
+    stroke-width: 1;
+  }
+
+  .cable {
+    fill: none;
+    stroke: var(--deep-rule);
+    stroke-width: 1.5;
+  }
+
+  .band-rule {
+    stroke: rgba(211, 226, 239, 0.18);
+    stroke-width: 1;
+  }
+
+  /* En diagonal y dentro del campo: a 34 unidades de paso, los nombres de área
+     no caben en horizontal sin pisarse. */
+  .bar-label {
+    fill: var(--deep-ink-2);
+    font-family: var(--font-mono);
+    font-size: 6.5px;
+    text-anchor: end;
+  }
+
+  .case {
+    fill: #0c2135;
+    stroke: var(--deep-rule);
+    stroke-width: 1.5;
+  }
+
+  .stand,
+  .foot {
+    fill: #0c2135;
+    stroke: var(--deep-rule);
+    stroke-width: 1;
+  }
+
+  .scanlines line {
+    stroke: rgba(211, 226, 239, 0.05);
+    stroke-width: 1;
+  }
+
+  .term {
+    fill: var(--amber);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .term.prompt {
+    fill: var(--amber-hi);
+  }
+
+  .term.line,
+  .term.ok {
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .term.ok {
+    fill: #7fd39a;
+  }
+
+  .caret {
+    fill: var(--amber-hi);
+  }
+
+  .sheet-pin {
+    fill: rgba(211, 226, 239, 0.04);
+    stroke: var(--deep-rule);
+    stroke-width: 1.5;
+  }
+
+  .grid line {
+    stroke: rgba(211, 226, 239, 0.07);
+    stroke-width: 1;
+  }
+
+  .plate-label {
+    fill: var(--amber);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+  }
+
+  .plate-label.light {
+    fill: var(--deep-ink-2);
+  }
+
+  /* Trazado del diagrama: la arquitectura se dibuja, no aparece. */
+  .arch-links line {
+    stroke: rgba(126, 154, 180, 0.5);
+    stroke-width: 1;
+    stroke-dasharray: 120;
+    stroke-dashoffset: 120;
+    transition: stroke-dashoffset 520ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .arch-ring {
+    fill: none;
+    stroke: var(--amber);
+    stroke-width: 1.5;
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0.9);
+    transition:
+      opacity 220ms ease,
+      transform 220ms var(--ease-out);
+  }
+
+  .arch-hub {
+    fill: var(--amber-hi);
+  }
+
+  .tick {
+    fill: none;
+    stroke: #7fd39a;
+    stroke-width: 2.6;
+    stroke-linecap: square;
+    stroke-dasharray: 22;
+    stroke-dashoffset: 22;
+    transition: stroke-dashoffset 200ms var(--ease-out);
+  }
+
+  .check-label {
+    fill: var(--deep-ink-2);
+    font-family: var(--font-mono);
+    font-size: 9px;
+  }
+
+  .plot-field {
+    fill: rgba(4, 14, 24, 0.6);
+    stroke: var(--deep-rule);
+    stroke-width: 1;
+  }
+
+  .axis {
+    stroke: var(--deep-ink-2);
+    stroke-width: 1;
+    stroke-dasharray: 220;
+    stroke-dashoffset: 220;
+    transition: stroke-dashoffset 380ms var(--ease-out);
+  }
+
+  .bar {
+    fill: rgba(59, 164, 222, 0.75);
+    transform-box: fill-box;
+    transform-origin: bottom;
+    transform: scaleY(0);
+    transition: transform 420ms var(--ease-out);
+  }
+
+  .bar-value {
+    fill: var(--deep-ink);
+    font-family: var(--font-mono);
+    font-size: 8px;
+    text-anchor: middle;
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+
+  .drum {
+    stroke: var(--deep-rule);
+    stroke-width: 3;
+  }
+
+  .carriage {
+    fill: var(--amber);
+    transition: transform 1000ms cubic-bezier(0.77, 0, 0.175, 1);
+  }
+
+  /* La hoja impresa sube desde el aparato y es la que entrega el home. */
+  .printed {
+    transform: translateY(150px);
+    opacity: 0;
+    transition:
+      transform 760ms cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 300ms ease;
+  }
+
+  .seal-ring {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 1.5;
+  }
+
+  .seal-hub {
+    fill: var(--accent);
+  }
+
+  .sheet-kind {
+    fill: #6a8296;
+    font-family: var(--font-mono);
+    font-size: 7px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+
+  .sheet-title {
+    fill: var(--primary);
+    font-family: var(--font-display);
+    font-size: 24px;
+  }
+
+  .sheet-rule {
+    stroke: #b6c8d8;
+    stroke-width: 1;
+  }
+
+  .sheet-foot {
+    fill: #6a8296;
+    font-family: var(--font-mono);
+    font-size: 6.5px;
+  }
+
+  /* Estación 01. Cada estación queda dibujada una vez alcanzada: el paso solo
+     avanza, así que las reglas son acumulativas. */
+  .intro[data-step] .term.line {
+    opacity: 1;
+  }
+
+  .intro[data-step] .term.line[data-term-line='0'] {
+    transition-delay: 180ms;
+  }
+
+  .intro[data-step] .term.line[data-term-line='1'] {
+    transition-delay: 380ms;
+  }
+
+  .intro[data-step] .term.line[data-term-line='2'] {
+    transition-delay: 580ms;
+  }
+
+  .intro[data-step] .term.line[data-term-line='3'] {
+    transition-delay: 780ms;
+  }
+
+  .intro[data-step] .term.ok {
+    opacity: 1;
+    transition-delay: 1000ms;
+  }
+
+  /* Estación 02 */
+  .intro:is([data-step='1'], [data-step='2'], [data-step='3']) .arch-links line {
+    stroke-dashoffset: 0;
+  }
+
+  .intro:is([data-step='1'], [data-step='2'], [data-step='3']) .arch-ring {
+    opacity: 1;
+    transform: scale(1);
+    transition-delay: 320ms;
+  }
+
+  .intro:is([data-step='1'], [data-step='2'], [data-step='3']) .tick {
+    stroke-dashoffset: 0;
+  }
+
+  .intro[data-step] .tick[data-arch-tick='0'] {
+    transition-delay: 560ms;
+  }
+
+  .intro[data-step] .tick[data-arch-tick='1'] {
+    transition-delay: 700ms;
+  }
+
+  .intro[data-step] .tick[data-arch-tick='2'] {
+    transition-delay: 840ms;
+  }
+
+  /* Estación 03 */
+  .intro:is([data-step='2'], [data-step='3']) .axis {
+    stroke-dashoffset: 0;
+  }
+
+  .intro:is([data-step='2'], [data-step='3']) :is(.bar, .bar-value) {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  .intro[data-step] .bar[data-bar='1'],
+  .intro[data-step] .bar-value[data-bar-value='1'] {
+    transition-delay: 80ms;
+  }
+
+  .intro[data-step] .bar[data-bar='2'],
+  .intro[data-step] .bar-value[data-bar-value='2'] {
+    transition-delay: 160ms;
+  }
+
+  .intro[data-step] .bar[data-bar='3'],
+  .intro[data-step] .bar-value[data-bar-value='3'] {
+    transition-delay: 240ms;
+  }
+
+  .intro[data-step] .bar[data-bar='4'],
+  .intro[data-step] .bar-value[data-bar-value='4'] {
+    transition-delay: 320ms;
+  }
+
+  .intro[data-step] .bar[data-bar='5'],
+  .intro[data-step] .bar-value[data-bar-value='5'] {
+    transition-delay: 400ms;
+  }
+
+  /* Estación 04 */
+  .intro[data-step='3'] .carriage {
+    transform: translateX(170px);
+  }
+
+  .intro[data-step='3'] .printed {
+    transform: translateY(0);
+    opacity: 1;
+    transition-delay: 260ms;
+  }
+
+  /* Salida: la hoja impresa es el relevo hacia el home, no un fundido global. */
+  .intro[data-exit] {
+    opacity: 0;
+    transform: scale(1.06);
+    pointer-events: none;
+  }
+
+  .intro-station {
+    position: absolute;
+    z-index: 3;
+    top: clamp(1.5rem, 5vh, 3rem);
+    left: clamp(1.5rem, 5vw, 4rem);
+    margin: 0;
+    color: var(--amber);
+    font-size: 0.68rem;
+  }
+
+  .intro-station {
+    transition: opacity 200ms ease;
+  }
+
+  .intro-station[data-swap] {
+    opacity: 0;
+  }
+
+  .intro-station::before {
+    margin-right: 0.7rem;
+    color: var(--deep-ink-2);
+    content: '/';
+  }
+
+  .intro-skip {
+    position: absolute;
+    z-index: 3;
+    right: clamp(1.5rem, 5vw, 4rem);
+    bottom: clamp(1.5rem, 5vh, 3rem);
+    min-height: 2.75rem;
+    border: 1px solid var(--deep-rule);
+    background: transparent;
+    color: var(--deep-ink);
+    padding: 0.55rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease;
+  }
+
+  .intro-skip:focus-visible {
+    outline: 3px solid var(--amber);
+    outline-offset: 3px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .intro-skip:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .intro {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,68 @@
+---
+interface Props {
+  compact?: boolean;
+  loading?: 'eager' | 'lazy';
+}
+
+const { compact = false, loading = 'lazy' } = Astro.props;
+---
+
+<figure class:list={['transmission-console chassis', { compact }]} aria-hidden="true">
+  <img
+    src="/images/transmission-console-v1.webp"
+    width="1891"
+    height="832"
+    alt=""
+    loading={loading}
+    decoding="async"
+  />
+  <span class="status-lamp"></span>
+</figure>
+
+<style>
+  .transmission-console {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1891 / 832;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
+
+  .transmission-console::after {
+    position: absolute;
+    inset: 0.55rem;
+    border: 1px solid rgba(16, 41, 61, 0.16);
+    content: '';
+    pointer-events: none;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .status-lamp {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    width: 0.45rem;
+    height: 0.45rem;
+    border: 1px solid rgba(16, 41, 61, 0.45);
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 0.25rem rgba(255, 178, 0, 0.14);
+  }
+
+  .compact {
+    aspect-ratio: 8 / 5;
+  }
+
+  .compact img {
+    object-position: center bottom;
+  }
+</style>
