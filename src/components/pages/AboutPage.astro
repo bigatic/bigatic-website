@@ -1,0 +1,270 @@
+---
+import { ArrowRight, ArrowUpRight, MapPin } from '@lucide/astro';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import type { Locale } from '../../data/site';
+import { aboutPageCopy } from '../../data/pages';
+import { siteConfig, siteLocation } from '../../data/site';
+import { route } from '../../i18n/routes';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+const c = aboutPageCopy[locale];
+const pad = (value: number) => String(value).padStart(2, '0');
+---
+
+<ContentLayout
+  title={c.title}
+  description={c.description}
+  locale={locale}
+  alternatePath={route('about', isEs ? 'en' : 'es')}
+  canonicalPath={route('about', locale)}
+>
+  <aside slot="hero-aside" class="institution-summary chassis">
+    <div class="module-bar" aria-hidden="true">
+      <span class="bar-mark"></span>
+      <span class="scale"></span>
+    </div>
+    <h2>{c.identity}</h2>
+    <p>{c.identityBody}</p>
+    <p class="location">
+      <MapPin size={15} aria-hidden="true" />
+      <span>{siteLocation}</span>
+    </p>
+    <a href={siteConfig.institutionalPage} target="_blank" rel="noopener noreferrer">
+      {c.institutional}<ArrowUpRight size={15} aria-hidden="true" />
+    </a>
+  </aside>
+
+  <section class="about-intro section-space">
+    <div class="container-shell purpose-grid">
+      <header>
+        <div class="purpose-rule module-bar" aria-hidden="true">
+          <span class="bar-mark"></span>
+          <span class="scale"></span>
+        </div>
+        <h2 class="section-title">{c.purposeTitle}</h2>
+      </header>
+      <div class="purpose-content">
+        <p class="large-copy">{c.purposeBody}</p>
+        <div class="purpose-actions">
+          <a class="button-primary" href={route('research', locale)}>
+            {c.research}<ArrowRight size={17} aria-hidden="true" />
+          </a>
+          <a
+            class="button-secondary"
+            href={siteConfig.institutionalPage}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {c.institutional}<ArrowUpRight size={17} aria-hidden="true" />
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="objectives section-space surface-grid" aria-labelledby="objectives-title">
+    <div class="container-shell objectives-grid">
+      <header>
+        <div class="module-bar" aria-hidden="true">
+          <span class="bar-mark"></span>
+          <span class="scale"></span>
+          {/* Cifra real: los objetivos publicados, no una etiqueta de relleno. */}
+          <span class="tally mono-label">{pad(c.items.length)}</span>
+        </div>
+        <h2 class="section-title" id="objectives-title">
+          {c.objectivesTitle}
+        </h2>
+        <p>{c.objectiveIntro}</p>
+      </header>
+      <ol>
+        {
+          c.items.map((item, index) => (
+            <li>
+              <span class="index">{pad(index + 1)}</span>
+              <p>{item}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+</ContentLayout>
+
+<style>
+  .institution-summary {
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    background: var(--surface);
+    padding: 1.4rem 1.5rem 1.5rem;
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .institution-summary h2 {
+    margin: 1.25rem 0 0.7rem;
+    color: var(--primary);
+    font-size: 1.22rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  .institution-summary > p {
+    max-width: 46ch;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+  }
+
+  .institution-summary > a {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.5rem;
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .location {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.35rem 0 0;
+    border-top: 1px solid var(--border);
+    color: var(--primary);
+    padding-top: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .location > :global(svg) {
+    flex: none;
+    color: var(--primary-hover);
+  }
+
+  .about-intro {
+    background: var(--surface);
+    padding-block: clamp(3.5rem, 5.5vw, 5.5rem);
+  }
+
+  .purpose-grid {
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.72fr) minmax(0, 1.28fr);
+    align-items: start;
+    gap: clamp(2.5rem, 6vw, 6rem);
+  }
+
+  .purpose-rule {
+    margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  .large-copy {
+    max-width: 66ch;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: clamp(1.08rem, 2vw, 1.3rem);
+  }
+
+  .purpose-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2.25rem;
+  }
+
+  .objectives {
+    border-block: 1px solid var(--border);
+    padding-block: clamp(3.5rem, 5.5vw, 5.5rem);
+  }
+
+  .objectives-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(25rem, 1.2fr);
+    gap: clamp(2.5rem, 6vw, 5.5rem);
+  }
+
+  .objectives header .module-bar {
+    margin-bottom: clamp(1.25rem, 2.5vw, 2rem);
+  }
+
+  .tally {
+    flex: none;
+    color: var(--primary-hover);
+    font-size: 0.62rem;
+  }
+
+  .objectives header > p {
+    max-width: 46ch;
+    margin-top: 1.5rem;
+    color: var(--text-muted);
+  }
+
+  ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 2px solid var(--primary);
+  }
+
+  li {
+    display: grid;
+    grid-template-columns: 3rem 1fr;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 62%, transparent);
+    padding: 1.15rem 0.75rem 1.15rem 0.9rem;
+  }
+
+  .index {
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    line-height: 1.9;
+  }
+
+  li p {
+    margin: 0;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .institution-summary > a:hover {
+      color: var(--primary);
+    }
+  }
+
+  @media (max-width: 52rem) {
+    .purpose-grid,
+    .objectives-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+  }
+
+  @media (max-width: 28rem) {
+    .purpose-actions,
+    .purpose-actions a {
+      width: 100%;
+    }
+  }
+</style>

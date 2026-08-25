@@ -1,0 +1,250 @@
+---
+import { getCollection } from 'astro:content';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import ResearchAreaCard from '../ResearchAreaCard.astro';
+import type { Locale } from '../../data/site';
+import { researchPageCopy } from '../../data/pages';
+import { route } from '../../i18n/routes';
+import { byOrder, inLocale } from '../../utils/content';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+const areas = (await getCollection('research')).filter(inLocale(locale)).sort(byOrder);
+const currentAreas = areas.filter((area) => area.data.status === 'current');
+const developingAreas = areas.filter((area) => area.data.status === 'developing');
+const c = researchPageCopy[locale];
+const pad = (value: number) => String(value).padStart(2, '0');
+---
+
+<ContentLayout
+  title={c.title}
+  description={c.description}
+  locale={locale}
+  alternatePath={route('research', isEs ? 'en' : 'es')}
+  canonicalPath={route('research', locale)}
+>
+  <aside slot="hero-aside" class="research-summary chassis">
+    <div class="module-bar" aria-hidden="true">
+      <span class="bar-mark"></span>
+      <span class="scale"></span>
+      <span class="tally mono-label">{pad(areas.length)}</span>
+    </div>
+    <p class="summary-body">{c.intro}</p>
+    <dl class="register">
+      <div>
+        {/* Anillo hueco: cada cifra cuenta areas, la entidad que contiene. */}
+        <dt><span class="mark-ring" aria-hidden="true"></span>{c.current}</dt>
+        <span class="leader" aria-hidden="true"></span>
+        <dd data-count={currentAreas.length}>{pad(currentAreas.length)}</dd>
+      </div>
+      <div>
+        <dt><span class="mark-ring" aria-hidden="true"></span>{c.developing}</dt>
+        <span class="leader" aria-hidden="true"></span>
+        <dd data-count={developingAreas.length}>{pad(developingAreas.length)}</dd>
+      </div>
+    </dl>
+  </aside>
+
+  <section class="area-section surface-grid section-space" aria-labelledby="current-areas">
+    <div class="container-shell">
+      <div class="module-bar catalog-bar">
+        <span class="bar-mark" aria-hidden="true"></span>
+        <p class="eyebrow">{c.current}</p>
+        <span class="scale" aria-hidden="true"></span>
+        <span class="tally mono-label" aria-hidden="true">{pad(currentAreas.length)}</span>
+      </div>
+      <h2 class="sr-only" id="current-areas">{c.current}</h2>
+      <div class="area-grid">
+        {
+          currentAreas.map((area, index) => (
+            <ResearchAreaCard area={area} locale={locale} index={index} />
+          ))
+        }
+      </div>
+
+      {
+        developingAreas.length > 0 && (
+          <>
+            <div class="module-bar catalog-bar developing-bar">
+              <span class="bar-mark" aria-hidden="true" />
+              <p class="eyebrow">{c.developing}</p>
+              <span class="scale" aria-hidden="true" />
+              <span class="tally mono-label" aria-hidden="true">
+                {pad(developingAreas.length)}
+              </span>
+            </div>
+            <h2 class="sr-only" id="developing-areas">
+              {c.developing}
+            </h2>
+            <div class="area-grid developing-grid" aria-labelledby="developing-areas">
+              {developingAreas.map((area, index) => (
+                <ResearchAreaCard area={area} locale={locale} index={currentAreas.length + index} />
+              ))}
+            </div>
+          </>
+        )
+      }
+    </div>
+  </section>
+
+  <section class="transversal section-space" aria-labelledby="transversal-title">
+    <div class="container-shell transversal-grid">
+      <div class="transversal-heading">
+        <div class="module-bar" aria-hidden="true">
+          <span class="bar-mark"></span>
+          <span class="scale"></span>
+        </div>
+        <h2 class="section-title" id="transversal-title">{c.transversalTitle}</h2>
+      </div>
+      <p>{c.transversalBody}</p>
+    </div>
+  </section>
+</ContentLayout>
+
+<style>
+  /* Panel del aparato en el hero: escala arriba, lectura al centro, registro al pie. */
+  .research-summary {
+    position: relative;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface);
+    padding: 1.15rem 1.35rem 1.35rem;
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .tally {
+    flex: none;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+
+  .summary-body {
+    max-width: 55ch;
+    margin: 1.5rem 0 1.65rem;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .research-summary .register {
+    gap: 0.7rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1.15rem;
+  }
+
+  .research-summary .register dt {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-muted);
+  }
+
+  .research-summary .register .mark-ring {
+    width: 0.55rem;
+    height: 0.55rem;
+    color: var(--primary-hover);
+  }
+
+  .research-summary .register dd {
+    font-size: 1.05rem;
+  }
+
+  .area-section {
+    border-block: 1px solid var(--border);
+    padding-block: clamp(3.5rem, 5.5vw, 5.5rem);
+  }
+
+  /* Cabecera de catalogo: escuadra, rotulo grabado, escala y cifra al extremo. */
+  .catalog-bar {
+    margin-bottom: 1.75rem;
+  }
+
+  .catalog-bar .eyebrow {
+    flex: none;
+    margin: 0;
+    line-height: 1;
+    padding-bottom: 0.15rem;
+  }
+
+  .area-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .developing-bar {
+    margin-top: 4.5rem;
+  }
+
+  .developing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transversal {
+    padding-block: clamp(3rem, 5vw, 5rem);
+  }
+
+  .transversal-grid {
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.58fr) minmax(0, 1.42fr);
+    align-items: start;
+    gap: clamp(2rem, 5vw, 4.5rem);
+    border-top: 2px solid var(--primary);
+    border-bottom: 1px solid var(--border);
+    padding-block: clamp(2rem, 4vw, 3.5rem);
+  }
+
+  .transversal-heading .module-bar {
+    margin-bottom: 1.25rem;
+  }
+
+  .transversal-grid > p {
+    max-width: none;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    line-height: 1.75;
+    text-wrap: pretty;
+  }
+
+  @media (max-width: 64rem) {
+    .area-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 47.99rem) {
+    .transversal-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 35rem) {
+    .catalog-bar {
+      flex-wrap: wrap;
+      gap: 0.5rem 0.9rem;
+    }
+
+    .catalog-bar .scale {
+      order: 3;
+      width: 100%;
+      flex: 1 0 100%;
+    }
+
+    .area-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

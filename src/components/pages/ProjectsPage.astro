@@ -1,0 +1,306 @@
+---
+import { getCollection } from 'astro:content';
+import { CircleCheck, GitFork, SearchCheck } from '@lucide/astro';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import ProjectCard from '../ProjectCard.astro';
+import CatalogEmptyState from '../CatalogEmptyState.astro';
+import type { Locale } from '../../data/site';
+import { projectsPageCopy } from '../../data/pages';
+import { route } from '../../i18n/routes';
+import { inLocale, isPublished } from '../../utils/content';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+const projects = (await getCollection('projects')).filter(inLocale(locale)).filter(isPublished);
+const order = { active: 0, planned: 1, completed: 2, archived: 3 } as const;
+projects.sort((a, b) => order[a.data.status] - order[b.data.status]);
+const c = projectsPageCopy[locale];
+const icons = [SearchCheck, CircleCheck, GitFork];
+const pad = (value: number) => String(value).padStart(2, '0');
+const statusOrder = ['active', 'planned', 'completed', 'archived'] as const;
+const statusLabels = {
+  es: { active: 'Activos', planned: 'Planificados', completed: 'Finalizados', archived: 'Archivo' },
+  en: { active: 'Active', planned: 'Planned', completed: 'Completed', archived: 'Archive' },
+};
+const projectCounts = statusOrder
+  .map((status) => ({
+    status,
+    count: projects.filter((project) => project.data.status === status).length,
+  }))
+  .filter(({ count }) => count > 0);
+---
+
+<ContentLayout
+  title={c.title}
+  description={c.description}
+  locale={locale}
+  alternatePath={route('projects', isEs ? 'en' : 'es')}
+  canonicalPath={route('projects', locale)}
+  robots={projects.length === 0 ? 'noindex, follow' : undefined}
+>
+  {
+    projects.length > 0 && (
+      <aside slot="hero-aside" class="project-summary chassis">
+        <div class="module-bar" aria-hidden="true">
+          <span class="bar-mark" />
+          <span class="scale" />
+          <span class="tally mono-label">{pad(projects.length)}</span>
+        </div>
+        <p>{c.catalogNote}</p>
+        <dl class="register">
+          {projectCounts.map(({ status, count }) => (
+            <div>
+              <dt>
+                <span class="mark-ring" aria-hidden="true" />
+                {statusLabels[locale][status]}
+              </dt>
+              <span class="leader" aria-hidden="true" />
+              <dd>{pad(count)}</dd>
+            </div>
+          ))}
+        </dl>
+      </aside>
+    )
+  }
+  {
+    projects.length > 0 ? (
+      <>
+        <section class="framework section-space" aria-labelledby="framework-title">
+          <div class="container-shell framework-grid">
+            <header>
+              <div class="module-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+              </div>
+              <h2 class="section-title" id="framework-title">
+                {c.frameworkTitle}
+              </h2>
+              <p>{c.frameworkBody}</p>
+            </header>
+            <div class="principles chassis">
+              {c.principles.map(([title, body], index) => {
+                const Icon = icons[index];
+                return (
+                  <article>
+                    <Icon size={22} stroke-width={1.5} aria-hidden="true" />
+                    <span class="code">{pad(index + 1)}</span>
+                    <h3>{title}</h3>
+                    <p>{body}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+        <section class="catalog section-space surface-grid" aria-labelledby="catalog-title">
+          <div class="container-shell">
+            <div class="module-bar catalog-bar">
+              <span class="bar-mark" aria-hidden="true" />
+              <p class="eyebrow">{c.catalog}</p>
+              <span class="scale" aria-hidden="true" />
+              <span class="tally mono-label" aria-hidden="true">
+                {pad(projects.length)}
+              </span>
+            </div>
+            <h2 class="sr-only" id="catalog-title">
+              {c.catalog}
+            </h2>
+            <div class="project-grid">
+              {projects.map((project, index) => (
+                <ProjectCard project={project} locale={locale} index={index} />
+              ))}
+            </div>
+          </div>
+        </section>
+      </>
+    ) : (
+      <section class="catalog section-space surface-grid" aria-labelledby="catalog-title">
+        <div class="container-shell">
+          <CatalogEmptyState
+            headingId="catalog-title"
+            title={c.emptyTitle}
+            description={c.emptyBody}
+            href={route('research', locale)}
+            linkLabel={c.research}
+          />
+        </div>
+      </section>
+    )
+  }
+</ContentLayout>
+
+<style>
+  .framework {
+    background: var(--surface);
+    padding-block: clamp(3.5rem, 5.5vw, 5.5rem);
+  }
+
+  .framework-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(28rem, 1.15fr);
+    gap: clamp(2.5rem, 6vw, 5.5rem);
+  }
+
+  .project-summary {
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface);
+    padding: 1.2rem 1.35rem 1.35rem;
+  }
+
+  .project-summary > p {
+    margin: 1.35rem 0 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .project-summary .register {
+    gap: 0.65rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+
+  .project-summary .register dt {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .project-summary .mark-ring {
+    width: 0.55rem;
+    height: 0.55rem;
+    color: var(--primary-hover);
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  header .module-bar {
+    margin-bottom: 1.5rem;
+  }
+
+  header > p {
+    max-width: 58ch;
+    margin: 1.5rem 0 0;
+    color: var(--text-muted);
+    text-wrap: pretty;
+  }
+
+  /* Rail de criterios: un panel del aparato, una fila por criterio. */
+  .principles {
+    display: grid;
+    align-content: start;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface);
+  }
+
+  .principles article {
+    display: grid;
+    grid-template-columns: auto 2rem minmax(8rem, 0.45fr) 1fr;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 1.35rem;
+  }
+
+  .principles article:last-child {
+    border-bottom: 0;
+  }
+
+  .principles article > :global(svg) {
+    color: var(--primary-hover);
+  }
+
+  .principles .code {
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+  }
+
+  .principles h3,
+  .principles p {
+    margin: 0;
+  }
+
+  .principles h3 {
+    color: var(--primary);
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+
+  .principles p {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  .catalog {
+    border-block: 1px solid var(--border);
+    padding-block: clamp(3.5rem, 5.5vw, 5.5rem);
+  }
+
+  .catalog-bar {
+    margin-bottom: 1.25rem;
+  }
+
+  .catalog-bar .eyebrow {
+    flex: none;
+    margin: 0;
+    line-height: 1;
+    padding-bottom: 0.15rem;
+  }
+
+  .tally {
+    flex: none;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  @media (max-width: 55rem) {
+    .framework-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .project-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .principles article {
+      grid-template-columns: auto 2rem 1fr;
+      padding: 1.15rem 1.1rem;
+    }
+
+    .principles p {
+      grid-column: 3;
+    }
+
+    .project-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
