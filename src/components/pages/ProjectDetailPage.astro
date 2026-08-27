@@ -1,0 +1,825 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import { ArrowUpRight } from '@lucide/astro';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import PeopleGrid from '../PeopleGrid.astro';
+import ProjectBuildSketch from '../ProjectBuildSketch.astro';
+import StatusBadge from '../StatusBadge.astro';
+import type { Locale } from '../../data/site';
+import { route } from '../../i18n/routes';
+import { formatDate, isPublished } from '../../utils/content';
+
+interface Props {
+  project: CollectionEntry<'projects'>;
+  locale: Locale;
+  alternatePath: string | null;
+}
+
+const { project, locale, alternatePath } = Astro.props;
+const isEs = locale === 'es';
+const { Content } = await render(project);
+const [researchEntries, peopleEntries, outputEntries] = await Promise.all([
+  getCollection('research'),
+  getCollection('people'),
+  getCollection('outputs'),
+]);
+
+const researchByKey = new Map(
+  researchEntries
+    .filter((entry) => entry.data.locale === locale)
+    .map((entry) => [entry.data.translationKey, entry]),
+);
+const peopleByKey = new Map(
+  peopleEntries
+    .filter((entry) => entry.data.locale === locale && isPublished(entry))
+    .map((entry) => [entry.data.translationKey, entry]),
+);
+const outputsByKey = new Map(
+  outputEntries
+    .filter((entry) => entry.data.locale === locale && isPublished(entry))
+    .map((entry) => [entry.data.translationKey, entry]),
+);
+
+const researchAreas = project.data.researchAreas
+  .map((key) => researchByKey.get(key))
+  .filter((entry): entry is CollectionEntry<'research'> => Boolean(entry));
+const lead = project.data.lead ? peopleByKey.get(project.data.lead) : undefined;
+const members = project.data.members
+  .map((key) => peopleByKey.get(key))
+  .filter((entry): entry is CollectionEntry<'people'> => Boolean(entry))
+  .sort((a, b) => a.data.name.localeCompare(b.data.name, locale, { sensitivity: 'base' }));
+const resolveOutputs = (keys: string[]) =>
+  keys
+    .map((key) => outputsByKey.get(key))
+    .filter((entry): entry is CollectionEntry<'outputs'> => Boolean(entry));
+
+const copy = {
+  es: {
+    projects: 'Proyectos',
+    file: 'Expediente de proyecto',
+    areas: 'Áreas',
+    team: 'Equipo',
+    outputs: 'Productos',
+    start: 'Inicio',
+    end: 'Finalización',
+    lead: 'Investigador líder',
+    proposedLead: 'Coordinación propuesta',
+    funding: 'Financiación',
+    repository: 'Repositorio',
+    website: 'Sitio del proyecto',
+    abstract: 'Resumen',
+    problem: 'Problema de investigación',
+    objectives: 'Objetivos',
+    methodology: 'Metodología',
+    collaborators: 'Colaboradores',
+    technologies: 'Tecnologías',
+    connectedOutputs: 'Producción vinculada',
+    publications: 'Publicaciones',
+    software: 'Software',
+    datasets: 'Datasets',
+    gallery: 'Galería',
+    collaboration: 'Colaboración',
+    tags: 'Etiquetas',
+    workingTeam: 'Equipo de trabajo',
+    initialTeam: 'Equipo inicial',
+    teamNote:
+      'Esta asignación es una propuesta inicial sujeta a revisión académica. No representa un resultado ni modifica el puntaje de los integrantes.',
+    active: 'Activo',
+    completed: 'Finalizado',
+    planned: 'Planificado',
+    archived: 'Archivado',
+  },
+  en: {
+    projects: 'Projects',
+    file: 'Project record',
+    areas: 'Areas',
+    team: 'Team',
+    outputs: 'Outputs',
+    start: 'Start',
+    end: 'End',
+    lead: 'Research lead',
+    proposedLead: 'Proposed coordination',
+    funding: 'Funding',
+    repository: 'Repository',
+    website: 'Project website',
+    abstract: 'Abstract',
+    problem: 'Research problem',
+    objectives: 'Objectives',
+    methodology: 'Methodology',
+    collaborators: 'Collaborators',
+    technologies: 'Technologies',
+    connectedOutputs: 'Connected outputs',
+    publications: 'Publications',
+    software: 'Software',
+    datasets: 'Datasets',
+    gallery: 'Gallery',
+    collaboration: 'Collaboration',
+    tags: 'Tags',
+    workingTeam: 'Working team',
+    initialTeam: 'Initial team',
+    teamNote:
+      'This assignment is an initial proposal subject to academic review. It is not an output and does not change member scores.',
+    active: 'Active',
+    completed: 'Completed',
+    planned: 'Planned',
+    archived: 'Archived',
+  },
+}[locale];
+
+const outputGroups = [
+  { title: copy.publications, items: resolveOutputs(project.data.publications) },
+  { title: copy.software, items: resolveOutputs(project.data.software) },
+  { title: copy.datasets, items: resolveOutputs(project.data.datasets) },
+].filter((group) => group.items.length > 0);
+const outputCount = outputGroups.reduce((total, group) => total + group.items.length, 0);
+const pad = (value: number) => String(value).padStart(2, '0');
+const projectPath = isEs
+  ? `/proyectos/${project.data.routeSlug}/`
+  : `/en/projects/${project.data.routeSlug}/`;
+const researchPath = (slug: string) => (isEs ? `/investigacion/${slug}/` : `/en/research/${slug}/`);
+const personPath = (slug: string) => (isEs ? `/integrantes/${slug}/` : `/en/people/${slug}/`);
+const outputPath = (slug: string) => (isEs ? `/produccion/${slug}/` : `/en/outputs/${slug}/`);
+---
+
+<ContentLayout
+  title={project.data.title}
+  description={project.data.summary}
+  locale={locale}
+  canonicalPath={projectPath}
+  alternatePath={alternatePath}
+  breadcrumbs={[
+    { label: copy.projects, href: route('projects', locale) },
+    { label: project.data.title },
+  ]}
+>
+  <aside slot="hero-aside" class="project-instrument chassis">
+    <div class="module-bar">
+      <span class="bar-mark" aria-hidden="true"></span>
+      <span class="eyebrow">{copy.file}</span>
+      <span class="scale" aria-hidden="true"></span>
+    </div>
+    <ProjectBuildSketch
+      status={project.data.status}
+      areaCount={project.data.researchAreas.length}
+    />
+    <div class="instrument-state">
+      <StatusBadge status={project.data.status} label={copy[project.data.status]} />
+      <span class="mono-label">PRJ / {project.data.routeSlug.slice(0, 12)}</span>
+    </div>
+    <dl class="register">
+      <div>
+        <dt>{copy.areas}</dt><span class="leader" aria-hidden="true"></span><dd>
+          {pad(researchAreas.length)}
+        </dd>
+      </div>
+      <div>
+        <dt>{copy.team}</dt><span class="leader" aria-hidden="true"></span><dd>
+          {pad(members.length)}
+        </dd>
+      </div>
+      <div>
+        <dt>{copy.outputs}</dt><span class="leader" aria-hidden="true"></span><dd>
+          {pad(outputCount)}
+        </dd>
+      </div>
+    </dl>
+  </aside>
+
+  <article class="project-detail">
+    <div class="container-shell detail-grid">
+      <aside class="project-index chassis" aria-label={copy.file}>
+        <div class="project-index-inner">
+          <div class="module-bar" aria-hidden="true">
+            <span class="bar-mark"></span><span class="scale"></span>
+          </div>
+          <StatusBadge status={project.data.status} label={copy[project.data.status]} />
+          <dl class="metadata">
+            {
+              project.data.startDate && (
+                <div>
+                  <dt>{copy.start}</dt>
+                  <dd>
+                    <time datetime={project.data.startDate}>
+                      {formatDate(project.data.startDate, locale)}
+                    </time>
+                  </dd>
+                </div>
+              )
+            }
+            {
+              project.data.endDate && (
+                <div>
+                  <dt>{copy.end}</dt>
+                  <dd>
+                    <time datetime={project.data.endDate}>
+                      {formatDate(project.data.endDate, locale)}
+                    </time>
+                  </dd>
+                </div>
+              )
+            }
+            {
+              researchAreas.length > 0 && (
+                <div>
+                  <dt>{copy.areas}</dt>
+                  <dd>
+                    <ul>
+                      {researchAreas.map((area) => (
+                        <li>
+                          <a href={researchPath(area.data.routeSlug)}>{area.data.name}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </dd>
+                </div>
+              )
+            }
+            {
+              lead && (
+                <div>
+                  <dt>{project.data.status === 'planned' ? copy.proposedLead : copy.lead}</dt>
+                  <dd>
+                    <a href={personPath(lead.data.routeSlug)}>{lead.data.name}</a>
+                  </dd>
+                </div>
+              )
+            }
+            {
+              project.data.funding && (
+                <div>
+                  <>
+                    <dt>{copy.funding}</dt>
+                    <dd>{project.data.funding}</dd>
+                  </>
+                </div>
+              )
+            }
+          </dl>
+          {
+            (project.data.repository || project.data.website || project.data.doi) && (
+              <nav class="external-links" aria-label={copy.file}>
+                {project.data.repository && (
+                  <a href={project.data.repository} target="_blank" rel="noopener noreferrer">
+                    {copy.repository}
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </a>
+                )}
+                {project.data.website && (
+                  <a href={project.data.website} target="_blank" rel="noopener noreferrer">
+                    {copy.website}
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </a>
+                )}
+                {project.data.doi && (
+                  <a
+                    href={`https://doi.org/${project.data.doi}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    DOI
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </a>
+                )}
+              </nav>
+            )
+          }
+        </div>
+      </aside>
+
+      <div class="project-document">
+        {
+          project.data.coverImage && (
+            <figure class="project-cover chassis">
+              <img
+                src={project.data.coverImage.src}
+                width={project.data.coverImage.width}
+                height={project.data.coverImage.height}
+                alt={project.data.coverImage.alt}
+              />
+              {(project.data.coverImage.caption || project.data.coverImage.credit) && (
+                <figcaption>
+                  <span>{project.data.coverImage.caption}</span>
+                  {project.data.coverImage.credit && <span>{project.data.coverImage.credit}</span>}
+                </figcaption>
+              )}
+            </figure>
+          )
+        }
+
+        <div class="project-body"><Content /></div>
+
+        <div class="project-sections">
+          {
+            project.data.abstract && (
+              <section>
+                <>
+                  <h2>{copy.abstract}</h2>
+                  <p>{project.data.abstract}</p>
+                </>
+              </section>
+            )
+          }
+          {
+            project.data.problem && (
+              <section>
+                <>
+                  <h2>{copy.problem}</h2>
+                  <p>{project.data.problem}</p>
+                </>
+              </section>
+            )
+          }
+          {
+            project.data.objectives.length > 0 && (
+              <section>
+                <>
+                  <h2>{copy.objectives}</h2>
+                  <ul>
+                    {project.data.objectives.map((item) => (
+                      <li>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              </section>
+            )
+          }
+          {
+            project.data.methodology && (
+              <section>
+                <>
+                  <h2>{copy.methodology}</h2>
+                  <p>{project.data.methodology}</p>
+                </>
+              </section>
+            )
+          }
+          {
+            project.data.collaborators.length > 0 && (
+              <section>
+                <>
+                  <h2>{copy.collaborators}</h2>
+                  <ul>
+                    {project.data.collaborators.map((item) => (
+                      <li>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              </section>
+            )
+          }
+          {
+            project.data.technologies.length > 0 && (
+              <section>
+                <>
+                  <h2>{copy.technologies}</h2>
+                  <ul>
+                    {project.data.technologies.map((item) => (
+                      <li>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              </section>
+            )
+          }
+          {
+            outputGroups.length > 0 && (
+              <section>
+                <h2>{copy.connectedOutputs}</h2>
+                <div class="output-groups">
+                  {outputGroups.map((group) => (
+                    <div>
+                      <h3>{group.title}</h3>
+                      <ul>
+                        {group.items.map((item) => (
+                          <li>
+                            <a href={outputPath(item.data.routeSlug)}>{item.data.title}</a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )
+          }
+          {
+            project.data.gallery.length > 0 && (
+              <section>
+                <h2>{copy.gallery}</h2>
+                <div class="project-gallery">
+                  {project.data.gallery.map((image) => (
+                    <figure>
+                      <img
+                        src={image.src}
+                        width={image.width}
+                        height={image.height}
+                        alt={image.alt}
+                        loading="lazy"
+                      />
+                      {(image.caption || image.credit) && (
+                        <figcaption>
+                          <span>{image.caption}</span>
+                          {image.credit && <span>{image.credit}</span>}
+                        </figcaption>
+                      )}
+                    </figure>
+                  ))}
+                </div>
+              </section>
+            )
+          }
+          {
+            project.data.partners.length > 0 && (
+              <section>
+                <>
+                  <h2>{copy.collaboration}</h2>
+                  <ul>
+                    {project.data.partners.map((item) => (
+                      <li>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              </section>
+            )
+          }
+        </div>
+
+        {
+          project.data.tags.length > 0 && (
+            <ul class="tags" aria-label={copy.tags}>
+              {project.data.tags.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
+    </div>
+
+    {
+      members.length > 0 && (
+        <section class="container-shell project-team" aria-labelledby="project-team-title">
+          <header class="module-bar">
+            <span class="bar-mark" aria-hidden="true" />
+            <div>
+              <>
+                <p>{copy.workingTeam}</p>
+                <h2 id="project-team-title">{copy.initialTeam}</h2>
+              </>
+            </div>
+            <span class="scale" aria-hidden="true" />
+            <span class="mono-label">{pad(members.length)}</span>
+          </header>
+          {project.data.status === 'planned' && <p class="team-note">{copy.teamNote}</p>}
+          <PeopleGrid people={members} locale={locale} />
+        </section>
+      )
+    }
+  </article>
+</ContentLayout>
+
+<style>
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .project-instrument {
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface);
+    padding: 1.15rem 1.35rem 1.35rem;
+  }
+
+  .project-instrument .eyebrow {
+    flex: none;
+    margin: 0;
+  }
+
+  .project-instrument :global(.project-build-sketch) {
+    height: 6.2rem;
+    margin-top: 1.1rem;
+  }
+
+  .instrument-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1rem 0 1.2rem;
+  }
+
+  .instrument-state > .mono-label {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 0.58rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .project-instrument .register {
+    gap: 0.65rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+
+  .project-detail {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding-block: clamp(3.5rem, 5.5vw, 5.5rem);
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: minmax(15rem, 17rem) minmax(0, 1fr);
+    align-items: start;
+    gap: clamp(2.5rem, 6vw, 6rem);
+  }
+
+  .project-index {
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface-muted);
+  }
+
+  .project-index-inner {
+    position: sticky;
+    top: 6.5rem;
+    padding: 1.15rem 1.25rem 1.3rem;
+  }
+
+  .project-index .module-bar {
+    margin-bottom: 1.15rem;
+  }
+
+  .metadata {
+    display: grid;
+    gap: 0;
+    margin: 1.25rem 0 0;
+  }
+
+  .metadata > div {
+    border-top: 1px solid var(--border);
+    padding-block: 0.9rem;
+  }
+
+  .metadata dt {
+    margin-bottom: 0.28rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 650;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .metadata dd {
+    margin: 0;
+    color: var(--primary);
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+
+  .metadata ul {
+    display: grid;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .metadata a,
+  .external-links a,
+  .project-sections a {
+    color: var(--primary-hover);
+    font-weight: 620;
+  }
+
+  .external-links {
+    display: grid;
+    gap: 0.45rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+
+  .external-links a {
+    display: flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .project-document {
+    min-width: 0;
+    max-width: 58rem;
+  }
+
+  .project-cover,
+  .project-gallery figure {
+    margin: 0;
+  }
+
+  .project-cover {
+    margin-bottom: 2.5rem;
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    padding: 0.55rem;
+  }
+
+  .project-cover img,
+  .project-gallery img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--border);
+    object-fit: cover;
+  }
+
+  .project-cover figcaption,
+  .project-gallery figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    line-height: 1.45;
+    padding: 0.65rem 0.15rem 0.1rem;
+  }
+
+  .project-body {
+    max-width: var(--reading);
+    color: var(--text-muted);
+    font-size: 1.04rem;
+    line-height: 1.78;
+  }
+
+  .project-body :global(> :first-child) {
+    margin-top: 0;
+  }
+
+  .project-sections {
+    counter-reset: project-section;
+    margin-top: 2.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .project-sections > section {
+    counter-increment: project-section;
+    display: grid;
+    grid-template-columns: minmax(11rem, 0.45fr) minmax(0, 1fr);
+    gap: clamp(1.5rem, 4vw, 3rem);
+    border-top: 1px solid var(--border);
+    padding-block: clamp(1.8rem, 3.5vw, 2.8rem);
+  }
+
+  .project-sections h2 {
+    position: relative;
+    margin: 0;
+    color: var(--primary);
+    font-size: clamp(1.15rem, 2vw, 1.55rem);
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+  }
+
+  .project-sections h2::before {
+    display: block;
+    margin-bottom: 0.55rem;
+    color: var(--primary-hover);
+    content: counter(project-section, decimal-leading-zero);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+  }
+
+  .project-sections p,
+  .project-sections ul {
+    max-width: var(--reading);
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.72;
+  }
+
+  .project-sections ul {
+    padding-left: 1.15rem;
+  }
+
+  .project-sections li + li {
+    margin-top: 0.55rem;
+  }
+
+  .output-groups {
+    display: grid;
+    gap: 1.3rem;
+  }
+
+  .output-groups h3 {
+    margin: 0 0 0.55rem;
+    color: var(--primary);
+    font-size: 0.96rem;
+  }
+
+  .project-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: 1rem;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tags li {
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    padding: 0.42rem 0.62rem;
+    text-transform: uppercase;
+  }
+
+  .project-team {
+    margin-top: clamp(3.5rem, 6vw, 5.5rem);
+    border-top: 2px solid var(--primary);
+    padding-top: 1.25rem;
+  }
+
+  .project-team > header {
+    align-items: flex-end;
+  }
+
+  .project-team header div {
+    flex: none;
+  }
+
+  .project-team header p {
+    margin: 0 0 0.35rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .project-team h2 {
+    margin: 0;
+    color: var(--primary);
+    font-size: clamp(1.6rem, 3vw, 2.35rem);
+    letter-spacing: -0.035em;
+  }
+
+  .team-note {
+    max-width: 70ch;
+    margin: 0.8rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+  }
+
+  @media (max-width: 56rem) {
+    .detail-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+
+    .project-index-inner {
+      position: static;
+    }
+
+    .metadata {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 1.5rem;
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .metadata,
+    .project-sections > section {
+      grid-template-columns: 1fr;
+    }
+
+    .project-sections > section {
+      gap: 1rem;
+    }
+
+    .project-cover figcaption,
+    .project-gallery figcaption {
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+  }
+</style>

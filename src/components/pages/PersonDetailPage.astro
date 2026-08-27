@@ -1,0 +1,636 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import { ArrowUpRight, Mail } from '@lucide/astro';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import PersonProgress from '../PersonProgress.astro';
+import type { Locale } from '../../data/site';
+import { route } from '../../i18n/routes';
+import { getUi } from '../../i18n/ui';
+import { findTranslation, isPublished } from '../../utils/content';
+
+interface Props {
+  person: CollectionEntry<'people'>;
+  all: CollectionEntry<'people'>[];
+  locale: Locale;
+}
+
+const { person, all, locale } = Astro.props;
+const isEs = locale === 'es';
+const t = getUi(locale).person;
+const translation = findTranslation(all, person);
+const { Content } = await render(person);
+const researchEntries = (await getCollection('research')).filter(
+  (entry) => entry.data.locale === locale,
+);
+const projectEntries = (await getCollection('projects')).filter(
+  (entry) => entry.data.locale === locale && isPublished(entry),
+);
+const outputEntries = (await getCollection('outputs')).filter(
+  (entry) => entry.data.locale === locale && isPublished(entry),
+);
+const researchByKey = new Map(researchEntries.map((entry) => [entry.data.translationKey, entry]));
+const projectsByKey = new Map(projectEntries.map((entry) => [entry.data.translationKey, entry]));
+const outputsByKey = new Map(outputEntries.map((entry) => [entry.data.translationKey, entry]));
+const researchAreas = person.data.researchAreas
+  .map((key) => researchByKey.get(key))
+  .filter((entry): entry is CollectionEntry<'research'> => Boolean(entry));
+const projects = person.data.projects
+  .map((key) => projectsByKey.get(key))
+  .filter((entry): entry is CollectionEntry<'projects'> => Boolean(entry));
+const publications = person.data.publications
+  .map((key) => outputsByKey.get(key))
+  .filter((entry): entry is CollectionEntry<'outputs'> => Boolean(entry));
+const externalLinks = [
+  ['GitHub', person.data.github],
+  ['LinkedIn', person.data.linkedin],
+  ['Google Scholar', person.data.googleScholar],
+  ['ResearchGate', person.data.researchGate],
+  [isEs ? 'Sitio web' : 'Website', person.data.website],
+].filter((item): item is [string, string] => Boolean(item[1]));
+const canonicalPath = isEs
+  ? `/integrantes/${person.data.routeSlug}/`
+  : `/en/people/${person.data.routeSlug}/`;
+const alternatePath = translation
+  ? isEs
+    ? `/en/people/${translation.data.routeSlug}/`
+    : `/integrantes/${translation.data.routeSlug}/`
+  : null;
+const researchPath = (slug: string) => (isEs ? `/investigacion/${slug}/` : `/en/research/${slug}/`);
+const projectPath = (slug: string) => (isEs ? `/proyectos/${slug}/` : `/en/projects/${slug}/`);
+const outputPath = (slug: string) => (isEs ? `/produccion/${slug}/` : `/en/outputs/${slug}/`);
+---
+
+<ContentLayout
+  title={person.data.name}
+  description={person.data.shortBio ?? `${person.data.roleLabel} - ${person.data.affiliation}`}
+  lead={`${person.data.roleLabel} · ${person.data.affiliation}`}
+  locale={locale}
+  canonicalPath={canonicalPath}
+  alternatePath={alternatePath}
+  breadcrumbs={[
+    { label: isEs ? 'Integrantes' : 'People', href: route('people', locale) },
+    { label: person.data.name },
+  ]}
+  compact
+  ogImage={person.data.photo}
+  ogImageAlt={`${t.portrait} ${person.data.name}`}
+>
+  {
+    person.data.photo ? (
+      <figure slot="hero-aside" class="portrait-frame">
+        <div class="portrait-mat">
+          <img
+            src={person.data.photo}
+            width="800"
+            height="800"
+            loading="eager"
+            fetchpriority="high"
+            decoding="async"
+            alt={`${t.portrait} ${person.data.name}`}
+          />
+        </div>
+        <figcaption>
+          <span>{person.data.roleLabel}</span>
+          <strong>BIGATIC</strong>
+        </figcaption>
+      </figure>
+    ) : (
+      <div slot="hero-aside" class="portrait-placeholder" aria-hidden="true">
+        {person.data.name
+          .split(' ')
+          .map((part) => part[0])
+          .slice(0, 2)
+          .join('')}
+      </div>
+    )
+  }
+
+  <article class="person-detail section-space">
+    <div class="container-shell profile-layout">
+      <div class="prose-content profile-narrative">
+        <Content />
+        <PersonProgress person={person} locale={locale} variant="profile" />
+        {person.data.status === 'alumni' && <p class="status-note">{t.formerMember}</p>}
+
+        {
+          person.data.researchInterests.length > 0 && (
+            <section class="profile-interests">
+              <h2>{t.researchInterests}</h2>
+              <ul>
+                {person.data.researchInterests.map((interest) => (
+                  <li>{interest}</li>
+                ))}
+              </ul>
+            </section>
+          )
+        }
+
+        {
+          person.data.participation && (
+            <section class="participation-panel">
+              <header>
+                <p>{t.bigatic}</p>
+                <h2>{t.participation}</h2>
+              </header>
+              <dl>
+                <div>
+                  <dt>{t.nucleus}</dt>
+                  <dd>{person.data.participation.nucleus}</dd>
+                </div>
+                <div>
+                  <dt>{t.category}</dt>
+                  <dd>{person.data.participation.category}</dd>
+                </div>
+                <div>
+                  <dt>{t.activity}</dt>
+                  <dd>{person.data.participation.activity}</dd>
+                </div>
+                <div>
+                  <dt>{t.participationRole}</dt>
+                  <dd>{person.data.participation.role}</dd>
+                </div>
+              </dl>
+            </section>
+          )
+        }
+      </div>
+
+      <aside class="profile-sidebar" aria-label={t.profileDetails}>
+        <section class="profile-facts">
+          <h2>{t.profileDetails}</h2>
+          <dl>
+            {
+              person.data.email && (
+                <div>
+                  <dt>{t.email}</dt>
+                  <dd>
+                    <a href={`mailto:${person.data.email}`}>
+                      <Mail size={15} aria-hidden="true" />
+                      {person.data.email}
+                    </a>
+                  </dd>
+                </div>
+              )
+            }
+            <div>
+              <dt>{t.affiliation}</dt>
+              <dd>{person.data.affiliation}</dd>
+            </div>
+            {
+              person.data.academicProgram && (
+                <div>
+                  <dt>{t.academicProgram}</dt>
+                  <dd>{person.data.academicProgram}</dd>
+                </div>
+              )
+            }
+            {
+              person.data.academicSemester && (
+                <div>
+                  <dt>{t.academicSemester}</dt>
+                  <dd>{person.data.academicSemester}</dd>
+                </div>
+              )
+            }
+            {
+              person.data.orcid && (
+                <div>
+                  <dt>{t.orcid}</dt>
+                  <dd>
+                    <a href={person.data.orcid} target="_blank" rel="noopener noreferrer">
+                      {person.data.orcid.replace('https://orcid.org/', '')}
+                      <ArrowUpRight size={14} aria-hidden="true" />
+                    </a>
+                  </dd>
+                </div>
+              )
+            }
+          </dl>
+          {
+            externalLinks.length > 0 && (
+              <div class="external-links">
+                {externalLinks.map(([label, url]) => (
+                  <a href={url} target="_blank" rel="noopener noreferrer">
+                    {label}
+                    <ArrowUpRight size={14} aria-hidden="true" />
+                  </a>
+                ))}
+              </div>
+            )
+          }
+        </section>
+
+        {
+          researchAreas.length > 0 && (
+            <section class="expertise">
+              <h2>{t.researchAreas}</h2>
+              <ul>
+                {researchAreas.map((area) => {
+                  const isPrimary = area.data.translationKey === person.data.primaryResearchArea;
+                  return (
+                    <li class:list={{ primary: isPrimary }}>
+                      <a href={researchPath(area.data.routeSlug)}>{area.data.name}</a>
+                      {isPrimary && <span>{t.primaryArea}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )
+        }
+      </aside>
+    </div>
+
+    {
+      (projects.length > 0 || publications.length > 0) && (
+        <div class="container-shell related-work">
+          {projects.length > 0 && (
+            <section>
+              <h2>{t.projects}</h2>
+              <ul>
+                {projects.map((item) => (
+                  <li>
+                    <a href={projectPath(item.data.routeSlug)}>{item.data.title}</a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {publications.length > 0 && (
+            <section>
+              <h2>{t.publications}</h2>
+              <ul>
+                {publications.map((item) => (
+                  <li>
+                    <a href={outputPath(item.data.routeSlug)}>{item.data.title}</a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      )
+    }
+  </article>
+</ContentLayout>
+
+<style>
+  .portrait-frame {
+    position: relative;
+    width: min(100%, 22rem);
+    margin: 0 0 0 auto;
+    animation: portrait-in var(--motion-standard) var(--ease-out) both;
+  }
+
+  .portrait-mat {
+    position: relative;
+    border: 1px solid rgba(10, 59, 112, 0.22);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: 0 1.75rem 4.5rem rgba(8, 45, 87, 0.14);
+    padding: 0.7rem;
+  }
+
+  .portrait-mat::after {
+    position: absolute;
+    right: -0.8rem;
+    bottom: -0.8rem;
+    width: 42%;
+    height: 42%;
+    border-right: 3px solid var(--accent);
+    border-bottom: 3px solid var(--accent);
+    border-radius: 0 0 1.5rem;
+    content: '';
+    pointer-events: none;
+  }
+
+  .portrait-mat img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 0;
+    object-fit: cover;
+    object-position: center 25%;
+  }
+
+  .portrait-frame figcaption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0.35rem 0;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+  }
+
+  .portrait-frame figcaption strong {
+    color: var(--primary);
+    letter-spacing: 0.12em;
+  }
+
+  .portrait-placeholder {
+    display: grid;
+    width: min(100%, 22rem);
+    aspect-ratio: 1;
+    place-items: center;
+    margin-left: auto;
+    border-radius: 0;
+    background: var(--primary);
+    color: white;
+    font-size: 4rem;
+    font-weight: 700;
+  }
+
+  .person-detail {
+    background: var(--surface);
+  }
+
+  .profile-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.18fr) minmax(19rem, 0.82fr);
+    align-items: start;
+    gap: clamp(3rem, 8vw, 8rem);
+  }
+
+  .profile-narrative {
+    max-width: 70ch;
+  }
+
+  .profile-narrative > :global(:first-child) {
+    margin-top: 0;
+  }
+
+  .profile-interests,
+  .participation-panel {
+    margin-top: clamp(2.25rem, 5vw, 3.5rem);
+  }
+
+  .profile-interests h2,
+  .participation-panel h2 {
+    margin: 0;
+    color: var(--primary);
+    font-size: clamp(1.25rem, 2vw, 1.55rem);
+  }
+
+  .profile-interests ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: 1.15rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .profile-interests li {
+    border: 1px solid rgba(10, 59, 112, 0.14);
+    border-radius: 0;
+    background: var(--surface);
+    color: var(--primary);
+    padding: 0.58rem 0.72rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .participation-panel {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 0;
+    background: var(--surface);
+  }
+
+  .participation-panel header {
+    padding: 1.5rem 1.5rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .participation-panel header p {
+    margin: 0 0 0.35rem;
+    color: var(--accent-strong, #176a2d);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+
+  .participation-panel dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  .participation-panel dl > div {
+    min-width: 0;
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .participation-panel dl > div:nth-child(odd) {
+    border-right: 1px solid var(--border);
+  }
+
+  .participation-panel dl > div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+
+  .participation-panel dt {
+    margin-bottom: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.67rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+
+  .participation-panel dd {
+    margin: 0;
+    color: var(--primary);
+    font-size: 0.87rem;
+    font-weight: 650;
+    line-height: 1.45;
+  }
+
+  .profile-sidebar {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .profile-sidebar section {
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary);
+    border-radius: 0;
+    background: var(--surface);
+    padding: 1.5rem;
+  }
+
+  .profile-sidebar h2,
+  .related-work h2 {
+    margin: 0 0 1.25rem;
+    color: var(--primary);
+    font-size: 1.05rem;
+  }
+
+  .profile-facts dl {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+  }
+
+  .profile-facts dl > div {
+    display: grid;
+    gap: 0.3rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-facts dt {
+    color: var(--text-muted);
+    font-size: 0.69rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+
+  .profile-facts dd {
+    margin: 0;
+    color: var(--primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .profile-facts a,
+  .external-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    overflow-wrap: anywhere;
+  }
+
+  .external-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1rem;
+    margin-top: 1.15rem;
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+
+  .expertise ul,
+  .related-work ul {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .expertise li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    border-top: 1px solid var(--border);
+    padding-block: 0.75rem;
+  }
+
+  .expertise li:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .expertise li.primary a {
+    color: var(--primary-hover);
+    font-weight: 700;
+  }
+
+  .expertise li span {
+    border-radius: 999px;
+    background: #e4f5e8;
+    color: #176a2d;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.64rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .expertise a {
+    color: var(--primary);
+    font-size: 0.85rem;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+
+  .related-work {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem;
+    margin-top: clamp(3rem, 7vw, 6rem);
+    border-top: 1px solid var(--border);
+    padding-top: 2.5rem;
+  }
+
+  .related-work li {
+    border-top: 1px solid var(--border);
+    padding-block: 0.9rem;
+  }
+
+  .status-note {
+    border-left: 2px solid var(--primary-hover);
+    padding-left: 1rem;
+  }
+
+  @keyframes portrait-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.99);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (max-width: 56rem) {
+    .portrait-frame,
+    .portrait-placeholder {
+      width: min(100%, 20rem);
+      margin-inline: 0;
+    }
+  }
+
+  @media (max-width: 48rem) {
+    .profile-layout,
+    .related-work {
+      grid-template-columns: 1fr;
+    }
+
+    .profile-sidebar {
+      grid-row: auto;
+    }
+
+    .participation-panel dl {
+      grid-template-columns: 1fr;
+    }
+
+    .participation-panel dl > div,
+    .participation-panel dl > div:nth-child(odd),
+    .participation-panel dl > div:nth-last-child(-n + 2) {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .participation-panel dl > div:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .portrait-frame {
+      animation: none;
+    }
+  }
+</style>
