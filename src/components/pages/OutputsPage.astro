@@ -1,0 +1,395 @@
+---
+import { getCollection } from 'astro:content';
+import { ArrowUpRight, Braces, Database, FileText, Presentation } from '@lucide/astro';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import CatalogEmptyState from '../CatalogEmptyState.astro';
+import type { Locale } from '../../data/site';
+import { outputsPageCopy, outputTypeLabels } from '../../data/pages';
+import { route } from '../../i18n/routes';
+import { inLocale, isPublished } from '../../utils/content';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+const outputs = (await getCollection('outputs'))
+  .filter(inLocale(locale))
+  .filter(isPublished)
+  .sort((a, b) => b.data.year - a.data.year);
+const typeLabels = outputTypeLabels[locale];
+const c = outputsPageCopy[locale];
+const icons = [FileText, Braces, Database, Presentation];
+const pad = (value: number) => String(value).padStart(2, '0');
+---
+
+<ContentLayout
+  title={c.title}
+  description={c.description}
+  locale={locale}
+  alternatePath={route('outputs', isEs ? 'en' : 'es')}
+  canonicalPath={route('outputs', locale)}
+  robots={outputs.length === 0 ? 'noindex, follow' : undefined}
+>
+  {
+    outputs.length > 0 ? (
+      <>
+        <section class="output-system section-space" aria-labelledby="system-title">
+          <div class="container-shell system-grid">
+            <header>
+              <div class="module-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+              </div>
+              <h2 class="section-title" id="system-title">
+                {c.systemTitle}
+              </h2>
+              <p>{c.systemBody}</p>
+            </header>
+            <div class="type-grid chassis">
+              {c.types.map(([title, body], index) => {
+                const Icon = icons[index];
+                return (
+                  <article>
+                    <Icon size={21} stroke-width={1.5} aria-hidden="true" />
+                    <h3>{title}</h3>
+                    <p>{body}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+        <section
+          class="output-catalog section-space surface-grid"
+          aria-labelledby="output-catalog-title"
+        >
+          <div class="container-shell">
+            <div class="module-bar catalog-bar">
+              <span class="bar-mark" aria-hidden="true" />
+              <p class="eyebrow">{c.catalog}</p>
+              <span class="scale" aria-hidden="true" />
+              <span class="tally mono-label" aria-hidden="true">
+                {pad(outputs.length)}
+              </span>
+            </div>
+            <h2 class="sr-only" id="output-catalog-title">
+              {c.catalog}
+            </h2>
+            <ol class="output-list">
+              {outputs.map((output, index) => (
+                <li class="output-row" data-reveal>
+                  <div class="row-code">
+                    <span class="idx">{pad(index + 1)}</span>
+                    <span class="year">{output.data.year}</span>
+                  </div>
+                  <div class="row-main">
+                    <h3>
+                      <a
+                        href={
+                          isEs
+                            ? `/produccion/${output.data.routeSlug}/`
+                            : `/en/outputs/${output.data.routeSlug}/`
+                        }
+                      >
+                        {output.data.title}
+                      </a>
+                    </h3>
+                    <p class="authors">{output.data.authors.join(', ')}</p>
+                    <p class="venue">
+                      {output.data.venue && <span class="venue-name">{output.data.venue}</span>}
+                      <span class="type-tag mono-label">{typeLabels[output.data.type]}</span>
+                    </p>
+                  </div>
+                  {output.data.doi && (
+                    <a
+                      class="doi"
+                      href={`https://doi.org/${output.data.doi}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      DOI
+                      <ArrowUpRight size={13} aria-hidden="true" />
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      </>
+    ) : (
+      <section
+        class="output-catalog section-space surface-grid"
+        aria-labelledby="output-catalog-title"
+      >
+        <div class="container-shell">
+          <CatalogEmptyState
+            headingId="output-catalog-title"
+            title={c.emptyTitle}
+            description={c.emptyBody}
+            href="https://github.com/bigatic"
+            target="_blank"
+            linkLabel={c.github}
+          />
+        </div>
+      </section>
+    )
+  }
+</ContentLayout>
+
+<style>
+  .output-system {
+    background: var(--surface);
+  }
+
+  .system-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(28rem, 1.2fr);
+    gap: clamp(3rem, 8vw, 8rem);
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  header .module-bar {
+    margin-bottom: 1.5rem;
+  }
+
+  header > p {
+    max-width: 59ch;
+    margin: 1.5rem 0 0;
+    color: var(--text-muted);
+    text-wrap: pretty;
+  }
+
+  .type-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+  }
+
+  .type-grid article {
+    min-height: 10rem;
+    padding: 1.3rem;
+  }
+
+  .type-grid article:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .type-grid article:nth-child(odd) {
+    border-right: 1px solid var(--border);
+  }
+
+  .type-grid article > :global(svg) {
+    color: var(--primary-hover);
+  }
+
+  .type-grid h3 {
+    margin: 1.2rem 0 0.4rem;
+    color: var(--primary);
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+
+  .type-grid p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
+
+  .output-catalog {
+    border-block: 1px solid var(--border);
+  }
+
+  .catalog-bar {
+    margin-bottom: 1.75rem;
+  }
+
+  .catalog-bar .eyebrow {
+    flex: none;
+    margin: 0;
+    line-height: 1;
+    padding-bottom: 0.15rem;
+  }
+
+  .tally {
+    flex: none;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+
+  /* Registro de produccion: ordinal y año a la izquierda, ficha a la derecha. */
+  .output-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 2px solid var(--primary);
+  }
+
+  .output-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 4.25rem minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    padding: 1.4rem 0;
+    transition: background-color var(--motion-fast) ease;
+  }
+
+  .row-code {
+    display: grid;
+    gap: 0.3rem;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+
+  .idx {
+    color: var(--text-muted);
+    font-size: 0.62rem;
+  }
+
+  .year {
+    color: var(--primary-hover);
+    font-size: 0.95rem;
+  }
+
+  /* Guia vertical del registro: separa la cifra de la ficha, como un libro mayor. */
+  .row-main {
+    border-left: 1px solid var(--border);
+    padding-left: clamp(1.1rem, 3vw, 2rem);
+  }
+
+  .output-row h3 {
+    margin: 0;
+    color: var(--primary);
+    font-size: 1.15rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+
+  .output-row h3 a {
+    color: inherit;
+    text-decoration-thickness: 0.07em;
+  }
+
+  /* Toda la fila abre la ficha; el DOI queda por encima con su propio destino. */
+  .output-row h3 a::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    content: '';
+  }
+
+  .output-row:has(h3 a:focus-visible) {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  .authors {
+    margin: 0.35rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+
+  .venue {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin: 0.6rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.86rem;
+  }
+
+  /* El tipo es una clasificacion del sistema: insignia en mono, a escuadra. */
+  .type-tag {
+    border: 1px solid var(--border);
+    padding: 0.2rem 0.45rem;
+    font-size: 0.58rem;
+  }
+
+  .doi {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--border);
+    color: var(--primary-hover);
+    padding: 0 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    transition:
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .output-row:hover {
+      background: var(--surface);
+    }
+
+    .doi:hover {
+      border-color: var(--primary-hover);
+      background: var(--surface-muted);
+    }
+  }
+
+  .output-row:focus-within {
+    background: var(--surface);
+  }
+
+  @media (max-width: 52rem) {
+    .system-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .output-row {
+      grid-template-columns: 4.25rem minmax(0, 1fr);
+      gap: 1rem;
+    }
+
+    .doi {
+      grid-column: 2;
+      justify-self: start;
+      margin-top: 0.9rem;
+    }
+  }
+
+  @media (max-width: 34rem) {
+    .type-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .type-grid article:nth-child(odd) {
+      border-right: 0;
+    }
+
+    .type-grid article:nth-child(-n + 3) {
+      border-bottom: 1px solid var(--border);
+    }
+  }
+</style>

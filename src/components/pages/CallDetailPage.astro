@@ -1,0 +1,376 @@
+---
+import { render, type CollectionEntry } from 'astro:content';
+import { ArrowUpRight, Check, Download } from '@lucide/astro';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import StatusBadge from '../StatusBadge.astro';
+import type { Locale } from '../../data/site';
+import { route } from '../../i18n/routes';
+import { getUi } from '../../i18n/ui';
+import { effectiveCallStatus, formatDate } from '../../utils/content';
+import TransmissionConsole from '../TransmissionConsole.astro';
+
+interface Props {
+  call: CollectionEntry<'calls'>;
+  locale: Locale;
+  alternatePath: string | null;
+}
+const { call, locale, alternatePath } = Astro.props;
+const isEs = locale === 'es';
+const status = effectiveCallStatus(call);
+const { Content } = await render(call);
+const labels = isEs
+  ? { open: 'Abierta', closed: 'Cerrada', upcoming: 'Próxima' }
+  : { open: 'Open', closed: 'Closed', upcoming: 'Upcoming' };
+const t = getUi(locale).call;
+const pad = (value: number) => String(value).padStart(2, '0');
+---
+
+<ContentLayout
+  title={call.data.title}
+  description={call.data.summary}
+  locale={locale}
+  canonicalPath={isEs
+    ? `/convocatorias/${call.data.routeSlug}/`
+    : `/en/calls/${call.data.routeSlug}/`}
+  alternatePath={alternatePath}
+  breadcrumbs={[{ label: t.join, href: route('join', locale) }, { label: call.data.title }]}
+>
+  {
+    call.data.poster && (
+      <figure slot="hero-aside" class="hero-poster">
+        <div class="poster-frame chassis">
+          <picture>
+            {call.data.posterLarge && (
+              <source srcset={call.data.posterLarge} media="(min-width: 60rem)" type="image/webp" />
+            )}
+            {call.data.posterSmall && <source srcset={call.data.posterSmall} type="image/webp" />}
+            <img
+              src={call.data.poster}
+              width="960"
+              height="1201"
+              alt={call.data.posterAlt}
+              loading="eager"
+              fetchpriority="high"
+              decoding="async"
+            />
+          </picture>
+        </div>
+        <a class="poster-download" href={call.data.poster} download>
+          <Download size={16} aria-hidden="true" />
+          {t.downloadPoster}
+        </a>
+      </figure>
+    )
+  }
+  <article class="call-detail section-space">
+    <div class="container-shell call-grid">
+      {/* Cabecera de la orden: estado y plazo quedan fijos mientras se lee el cuerpo. */}
+      <aside class="call-meta" data-status={status}>
+        <div class="module-bar" aria-hidden="true">
+          <span class="bar-mark"></span>
+          <span class="scale"></span>
+        </div>
+        <StatusBadge status={status} label={labels[status]} />
+        <p class="call-code">{call.data.semester}</p>
+        <dl class="register">
+          <div>
+            <dt>{t.closes}</dt>
+            <span class="leader" aria-hidden="true"></span>
+            <dd>
+              <time datetime={call.data.closeDate}>{formatDate(call.data.closeDate, locale)}</time>
+            </dd>
+          </div>
+        </dl>
+        <TransmissionConsole compact />
+      </aside>
+      <div class="call-body">
+        <div class="prose-content"><Content /></div>
+        <div class="columns">
+          <section class="panel chassis" data-reveal>
+            <div class="module-bar" aria-hidden="true">
+              <span class="bar-mark"></span>
+              <span class="scale"></span>
+              <span class="panel-index mono-label">{pad(1)}</span>
+            </div>
+            <h2>{t.audience}</h2>
+            <ul class="check-list">
+              {
+                call.data.requirements.map((item) => (
+                  <li>
+                    <Check size={15} aria-hidden="true" />
+                    {item}
+                  </li>
+                ))
+              }
+            </ul>
+          </section>
+          <section class="panel chassis" data-reveal>
+            <div class="module-bar" aria-hidden="true">
+              <span class="bar-mark"></span>
+              <span class="scale"></span>
+              <span class="panel-index mono-label">{pad(2)}</span>
+            </div>
+            <h2>{t.workMode}</h2>
+            <ul class="check-list">
+              {
+                call.data.workMode.map((item) => (
+                  <li>
+                    <Check size={15} aria-hidden="true" />
+                    {item}
+                  </li>
+                ))
+              }
+            </ul>
+          </section>
+        </div>
+        <section class="panel chassis areas" data-reveal>
+          <div class="module-bar" aria-hidden="true">
+            <span class="bar-mark"></span>
+            <span class="scale"></span>
+            <span class="panel-index mono-label">{pad(3)}</span>
+          </div>
+          <h2>{t.topics}</h2>
+          {/* Anillo hueco: cada enfoque es un area que contiene proyectos (§9). */}
+          <ul class="area-list">
+            {
+              call.data.researchAreas.map((item) => (
+                <li>
+                  <span class="mark-ring" aria-hidden="true" />
+                  {item}
+                </li>
+              ))
+            }
+          </ul>
+          <p class="transversal-note">{call.data.transversalNote}</p>
+        </section>
+        {
+          status === 'open' && (
+            <a
+              class="button-primary apply"
+              href={call.data.formUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t.apply}
+              <ArrowUpRight size={17} aria-hidden="true" />
+            </a>
+          )
+        }
+      </div>
+    </div>
+  </article>
+</ContentLayout>
+
+<style>
+  .hero-poster {
+    width: min(100%, 25rem);
+    margin: 0 0 0 auto;
+  }
+
+  .poster-frame {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
+
+  .poster-frame picture,
+  .poster-frame img {
+    display: block;
+    width: 100%;
+  }
+
+  .poster-frame img {
+    height: auto;
+  }
+
+  .poster-download {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .call-detail {
+    background: var(--surface);
+  }
+
+  .call-grid {
+    display: grid;
+    grid-template-columns: 16rem minmax(0, 1fr);
+    gap: clamp(2.5rem, 6vw, 5.5rem);
+  }
+
+  .call-meta {
+    position: sticky;
+    top: calc(var(--header-height) + 1.5rem);
+    display: flex;
+    align-self: start;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1.25rem;
+    border-top: 2px solid var(--rule-strong);
+    padding-top: 1.1rem;
+  }
+
+  .call-meta[data-status='open'] {
+    border-top-color: var(--accent);
+  }
+
+  .call-meta[data-status='upcoming'] {
+    border-top-color: var(--primary-hover);
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .call-code {
+    margin: 0;
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: clamp(2.4rem, 4.5vw, 3.1rem);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+
+  .call-meta .register {
+    width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.9rem;
+  }
+
+  .call-meta .register dd {
+    font-size: 0.82rem;
+  }
+
+  .call-meta > :global(.transmission-console) {
+    width: 100%;
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: clamp(2.5rem, 5vw, 3.5rem);
+  }
+
+  .panel {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1.35rem 1.4rem 1.5rem;
+  }
+
+  .panel-index {
+    flex: none;
+    color: var(--primary-hover);
+    font-size: 0.62rem;
+  }
+
+  .panel h2 {
+    margin: 1.15rem 0 1.1rem;
+    color: var(--primary);
+    font-size: 1.2rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  .panel ul {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .check-list li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.55rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .check-list li > :global(svg) {
+    margin-top: 0.35rem;
+    color: var(--accent);
+  }
+
+  .areas {
+    margin-top: 1rem;
+  }
+
+  .area-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 1.5rem;
+  }
+
+  .area-list li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.55rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--primary);
+    padding-block: 0.7rem;
+    font-size: 0.92rem;
+    font-weight: 620;
+    line-height: 1.4;
+  }
+
+  .area-list .mark-ring {
+    margin-top: 0.42rem;
+    color: var(--primary-hover);
+  }
+
+  .transversal-note {
+    max-width: 68ch;
+    margin: 1.4rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+
+  .apply {
+    width: fit-content;
+    margin-top: 1.75rem;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .poster-download:hover {
+      color: var(--primary);
+    }
+  }
+
+  @media (max-width: 56rem) {
+    .hero-poster {
+      width: min(100%, 22rem);
+      margin-inline: 0;
+    }
+  }
+
+  @media (max-width: 48rem) {
+    .call-grid,
+    .columns,
+    .area-list {
+      grid-template-columns: 1fr;
+    }
+
+    /* Apilado: el panel de estado deja de ser columna y no debe fijarse. */
+    .call-meta {
+      position: static;
+    }
+  }
+</style>

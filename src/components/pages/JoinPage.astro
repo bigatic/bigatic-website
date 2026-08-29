@@ -1,0 +1,371 @@
+---
+import { getCollection } from 'astro:content';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  CircleQuestionMark,
+  Users,
+} from '@lucide/astro';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import StatusBadge from '../StatusBadge.astro';
+import type { Locale } from '../../data/site';
+import { joinPageCopy } from '../../data/pages';
+import { route } from '../../i18n/routes';
+import { effectiveCallStatus, formatDate, inLocale, isPublished } from '../../utils/content';
+import RankLadder from '../RankLadder.astro';
+import TransmissionConsole from '../TransmissionConsole.astro';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+const calls = (await getCollection('calls')).filter(inLocale(locale)).filter(isPublished);
+const currentCall =
+  calls.find((item) => item.data.featured && effectiveCallStatus(item) === 'open') ??
+  calls.find((item) => effectiveCallStatus(item) === 'open') ??
+  calls.find((item) => item.data.featured && effectiveCallStatus(item) === 'upcoming') ??
+  calls.find((item) => effectiveCallStatus(item) === 'upcoming') ??
+  calls.sort((a, b) => b.data.closeDate.localeCompare(a.data.closeDate))[0];
+const callStatus = currentCall ? effectiveCallStatus(currentCall) : null;
+const c = joinPageCopy[locale];
+---
+
+<ContentLayout
+  title={c.title}
+  description={c.description}
+  locale={locale}
+  alternatePath={route('join', isEs ? 'en' : 'es')}
+  canonicalPath={route('join', locale)}
+>
+  {
+    currentCall && (
+      <article slot="hero-aside" class="call-highlight">
+        {currentCall.data.poster && (
+          <picture>
+            {currentCall.data.posterSmall && (
+              <source srcset={currentCall.data.posterSmall} type="image/webp" />
+            )}
+            <img
+              src={currentCall.data.poster}
+              width="960"
+              height="1201"
+              loading="eager"
+              decoding="async"
+              alt=""
+            />
+          </picture>
+        )}
+        <div>
+          <p class="eyebrow">{c.call}</p>
+          <StatusBadge
+            status={callStatus ?? currentCall.data.status}
+            label={
+              callStatus === 'open'
+                ? c.statusOpen
+                : callStatus === 'upcoming'
+                  ? c.statusUpcoming
+                  : c.statusClosed
+            }
+          />
+          <strong>{currentCall.data.semester}</strong>
+          <p class="deadline">
+            {c.close}{' '}
+            <time datetime={currentCall.data.closeDate}>
+              {formatDate(currentCall.data.closeDate, locale)}
+            </time>
+          </p>
+          <div class="call-actions">
+            {callStatus === 'open' && (
+              <a
+                class="button-primary"
+                href={currentCall.data.formUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {c.apply}
+                <ArrowUpRight size={17} aria-hidden="true" />
+              </a>
+            )}
+            <a
+              class="button-text"
+              href={
+                isEs
+                  ? `/convocatorias/${currentCall.data.routeSlug}/`
+                  : `/en/calls/${currentCall.data.routeSlug}/`
+              }
+            >
+              {c.viewDetails}
+              <ArrowRight size={17} aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      </article>
+    )
+  }
+  <section class="join-intro section-space">
+    <div class="container-shell intro-grid">
+      <div class="intro-signal">
+        <p>{c.intro}</p>
+        <TransmissionConsole />
+      </div>
+      <div class="join-facts">
+        <article>
+          <Users size={22} aria-hidden="true" /><h2>{c.who}</h2><ul>
+            {
+              c.whoItems.map((item) => (
+                <li>
+                  <Check size={15} aria-hidden="true" />
+                  {item}
+                </li>
+              ))
+            }
+          </ul>
+        </article>
+        <article>
+          <CalendarDays size={22} aria-hidden="true" /><h2>{c.how}</h2><ul>
+            {
+              c.howItems.map((item) => (
+                <li>
+                  <Check size={15} aria-hidden="true" />
+                  {item}
+                </li>
+              ))
+            }
+          </ul>
+        </article>
+        <article>
+          <Check size={22} aria-hidden="true" /><h2>{c.expect}</h2><ul>
+            {
+              c.expectItems.map((item) => (
+                <li>
+                  <Check size={15} aria-hidden="true" />
+                  {item}
+                </li>
+              ))
+            }
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="path section-space surface-grid" aria-labelledby="path-title">
+    <div class="container-shell">
+      <header class="path-heading">
+        <h2 class="section-title" id="path-title">{c.pathTitle}</h2>
+        <p>{c.pathBody}</p>
+      </header>
+      <div class="rank-track">
+        <RankLadder locale={locale} variant="full" />
+      </div>
+      <p class="path-note">{c.pathNote}</p>
+    </div>
+  </section>
+
+  <section class="faq section-space" aria-labelledby="faq-title">
+    <div class="container-shell faq-grid">
+      <div>
+        <CircleQuestionMark size={32} stroke-width={1.4} aria-hidden="true" /><h2
+          class="section-title"
+          id="faq-title"
+        >
+          {c.faq}
+        </h2>
+      </div>
+      <div>
+        {
+          c.faqs.map(([question, answer]) => (
+            <details>
+              <>
+                <summary>{question}</summary>
+                <p>{answer}</p>
+              </>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</ContentLayout>
+
+<style>
+  .call-highlight {
+    display: grid;
+    grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid #acdcb7;
+    border-radius: 0;
+    background: var(--surface);
+    box-shadow: 0 1.5rem 4rem rgba(8, 45, 87, 0.1);
+  }
+  .call-highlight picture,
+  .call-highlight img {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .call-highlight img {
+    object-fit: cover;
+    object-position: top center;
+  }
+  .call-highlight > div {
+    padding: 1.35rem;
+  }
+  .call-highlight .eyebrow {
+    margin-bottom: 0.7rem;
+  }
+  .call-highlight strong {
+    display: block;
+    margin: 0.75rem 0 0.4rem;
+    color: var(--success);
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    letter-spacing: -0.06em;
+    line-height: 1;
+  }
+  .call-highlight .deadline {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+  .call-highlight .deadline time {
+    color: var(--primary);
+    font-weight: 650;
+  }
+  .call-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    margin-top: 1rem;
+  }
+  .call-actions :global(.button-primary) {
+    min-height: 2.55rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.76rem;
+  }
+  .path {
+    border-block: 1px solid var(--border);
+  }
+  .path-heading > p {
+    max-width: 62ch;
+    margin: 1.25rem 0 0;
+    color: var(--text-muted);
+  }
+  .rank-track {
+    margin: clamp(2rem, 4vw, 3rem) 0 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background:
+      radial-gradient(circle at 92% 0%, rgba(16, 41, 61, 0.06), transparent 62%),
+      linear-gradient(180deg, var(--surface), var(--surface-muted));
+    box-shadow: 0 1rem 2.8rem rgba(8, 45, 87, 0.07);
+    padding: clamp(1.75rem, 4vw, 2.5rem) clamp(1.25rem, 3vw, 2rem);
+  }
+  .path-note {
+    max-width: 70ch;
+    margin: 1.5rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+  }
+  .join-intro {
+    background: var(--surface);
+  }
+  .intro-signal {
+    display: grid;
+    grid-template-columns: minmax(16rem, 0.7fr) minmax(24rem, 1.3fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5rem);
+    margin-bottom: 3rem;
+  }
+  .intro-signal > p {
+    max-width: 47ch;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 1.18rem;
+  }
+  .join-facts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 2px solid var(--primary);
+    border-left: 1px solid var(--border);
+  }
+  .join-facts article {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 1.6rem;
+  }
+  .join-facts article > :global(svg) {
+    color: var(--primary-hover);
+  }
+  .join-facts h2 {
+    margin: 1.5rem 0 1rem;
+    color: var(--primary);
+    font-size: 1.2rem;
+  }
+  .join-facts ul {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .join-facts li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.55rem;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+  .join-facts li > :global(svg) {
+    margin-top: 0.3rem;
+    color: var(--accent);
+  }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.65fr) minmax(0, 1.35fr);
+    gap: clamp(3rem, 8vw, 8rem);
+  }
+  .faq-grid > div:first-child > :global(svg) {
+    margin-bottom: 1.5rem;
+    color: var(--primary-hover);
+  }
+  details {
+    border-top: 1px solid var(--border);
+  }
+  details:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+  summary {
+    min-height: 4.5rem;
+    padding: 1.2rem 2rem 1.2rem 0;
+    color: var(--primary);
+    font-weight: 650;
+    cursor: pointer;
+  }
+  details p {
+    max-width: 65ch;
+    margin: 0 0 1.5rem;
+    color: var(--text-muted);
+  }
+  @media (max-width: 50rem) {
+    .intro-signal,
+    .join-facts {
+      grid-template-columns: 1fr;
+    }
+    .faq-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 32rem) {
+    .call-highlight {
+      grid-template-columns: 1fr;
+    }
+    .call-highlight picture {
+      max-height: 13rem;
+    }
+  }
+</style>

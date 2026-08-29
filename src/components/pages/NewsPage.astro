@@ -1,0 +1,127 @@
+---
+import { getCollection } from 'astro:content';
+import { Rss } from '@lucide/astro';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import NewsCard from '../NewsCard.astro';
+import CatalogEmptyState from '../CatalogEmptyState.astro';
+import type { Locale } from '../../data/site';
+import { newsPageCopy } from '../../data/pages';
+import { route } from '../../i18n/routes';
+import { byDateDesc, inLocale, isPublished } from '../../utils/content';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+const news = (await getCollection('news'))
+  .filter(inLocale(locale))
+  .filter(isPublished)
+  .sort(byDateDesc);
+const c = newsPageCopy[locale];
+---
+
+<ContentLayout
+  title={c.title}
+  description={c.description}
+  locale={locale}
+  alternatePath={route('news', isEs ? 'en' : 'es')}
+  canonicalPath={route('news', locale)}
+>
+  <aside slot="hero-aside" class="news-summary">
+    <div>
+      <strong data-count={news.length}>{String(news.length).padStart(2, '0')}</strong>
+      <span>{c.catalog}</span>
+    </div>
+    <h2>{c.introTitle}</h2>
+    <p>{c.introBody}</p>
+    <a class="button-secondary" href={isEs ? '/rss.xml' : '/en/rss.xml'}>
+      <Rss size={17} aria-hidden="true" />{c.rss}
+    </a>
+  </aside>
+  <section class="news-catalog section-space surface-grid" aria-labelledby="news-list-title">
+    <div class="container-shell">
+      <div class="catalog-heading">
+        <p class="eyebrow">{c.catalog}</p><span>{String(news.length).padStart(2, '0')}</span>
+      </div>
+      <h2 class="sr-only" id="news-list-title">{c.catalog}</h2>
+      {
+        news.length ? (
+          <div class="news-grid">
+            {news.map((item) => (
+              <NewsCard item={item} locale={locale} />
+            ))}
+          </div>
+        ) : (
+          <CatalogEmptyState title={c.emptyTitle} description={c.emptyBody} />
+        )
+      }
+    </div>
+  </section>
+</ContentLayout>
+
+<style>
+  .news-summary {
+    border-top: 3px solid var(--primary);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1.5rem;
+  }
+  .news-summary > div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+  .news-summary strong {
+    color: var(--primary);
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    letter-spacing: -0.06em;
+    line-height: 1;
+  }
+  .news-summary span {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .news-summary h2 {
+    margin: 1.25rem 0 0;
+    color: var(--primary);
+    font-size: 1.15rem;
+  }
+  .news-summary p {
+    max-width: 54ch;
+    margin: 0.65rem 0 1.25rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+  .news-catalog {
+    border-block: 1px solid var(--border);
+  }
+  .catalog-heading {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .catalog-heading .eyebrow {
+    margin: 0;
+  }
+  .catalog-heading span {
+    color: #526b82;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .news-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+  @media (max-width: 48rem) {
+    .news-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
