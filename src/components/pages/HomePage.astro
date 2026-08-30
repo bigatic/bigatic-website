@@ -1,0 +1,968 @@
+---
+import { getCollection } from 'astro:content';
+import { ArrowRight, ArrowUpRight, MapPin } from '@lucide/astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SectionHeader from '../SectionHeader.astro';
+import ResearchAreaCard from '../ResearchAreaCard.astro';
+import ResearchFieldPlate from '../ResearchFieldPlate.astro';
+import AreaDial from '../AreaDial.astro';
+import ProjectCard from '../ProjectCard.astro';
+import NewsCard from '../NewsCard.astro';
+import PeopleGrid from '../PeopleGrid.astro';
+import StatusBadge from '../StatusBadge.astro';
+import GithubIcon from '../icons/GithubIcon.astro';
+import BitProbe from '../BitProbe.astro';
+import type { Locale } from '../../data/site';
+import { homePageCopy } from '../../data/pages';
+import { siteConfig, siteLocation } from '../../data/site';
+import { route } from '../../i18n/routes';
+import {
+  byDateDesc,
+  byOrder,
+  effectiveCallStatus,
+  formatDate,
+  inLocale,
+  isPublished,
+} from '../../utils/content';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const isEs = locale === 'es';
+const researchAreas = (await getCollection('research')).filter(inLocale(locale)).sort(byOrder);
+const featuredAreas = researchAreas.filter((area) => area.data.featured).slice(0, 4);
+const projects = (await getCollection('projects')).filter(inLocale(locale)).filter(isPublished);
+const featuredProjects = (
+  projects.some((project) => project.data.featured)
+    ? projects.filter((project) => project.data.featured)
+    : projects
+).slice(0, 3);
+const outputs = (await getCollection('outputs')).filter(inLocale(locale)).filter(isPublished);
+const people = (await getCollection('people')).filter(inLocale(locale)).filter(isPublished);
+const previewPeople = [...people].sort(byOrder).slice(0, 3);
+const news = (await getCollection('news'))
+  .filter(inLocale(locale))
+  .filter(isPublished)
+  .sort(byDateDesc);
+const calls = (await getCollection('calls')).filter(inLocale(locale)).filter(isPublished);
+const activeCall =
+  calls.find((call) => call.data.featured && effectiveCallStatus(call) === 'open') ??
+  calls.find((call) => effectiveCallStatus(call) === 'open');
+const homeNews = activeCall
+  ? news.filter((item) => item.data.relatedCall !== activeCall.data.translationKey)
+  : news;
+const content = homePageCopy[locale];
+const pad = (value: number) => String(value).padStart(2, '0');
+---
+
+<BaseLayout
+  title={content.title}
+  description={content.description}
+  locale={locale}
+  alternatePath={route('home', locale === 'es' ? 'en' : 'es')}
+  canonicalPath={route('home', locale)}
+  schemaType="ResearchOrganization"
+>
+  <section class="home-hero" aria-labelledby="home-title">
+    <div class="container-shell hero-layout chassis">
+      <div class="hero-copy">
+        <p class="hero-kicker">{content.kicker}</p>
+        <h1 id="home-title" class="display-title">{content.heroTitle}</h1>
+        <p class="hero-description">{content.heroBody}</p>
+        <div class="hero-actions">
+          <a class="button-primary" href={route('research', locale)}>
+            {content.explore}<ArrowRight size={17} aria-hidden="true" />
+          </a>
+          {
+            projects.length > 0 && (
+              <a class="button-secondary" href={route('projects', locale)}>
+                {content.projects}
+              </a>
+            )
+          }
+          <a
+            class="github-tertiary"
+            href={siteConfig.github}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <GithubIcon size={18} /> GitHub <ArrowUpRight size={14} aria-hidden="true" />
+          </a>
+        </div>
+        <div class="hero-location">
+          <MapPin size={16} aria-hidden="true" />
+          <span>{content.location} · {siteLocation}</span>
+        </div>
+      </div>
+      <AreaDial locale={locale} />
+      <BitProbe locale={locale} />
+    </div>
+  </section>
+
+  {
+    /* Sin áreas publicadas no hay sección: una cabecera sobre una reja vacía
+       sería un contenedor sin contenido, que §3 no admite. */
+  }
+  {
+    featuredAreas.length > 0 && (
+      <section
+        class="research-section section-space surface-grid"
+        aria-labelledby="research-heading"
+      >
+        <div class="container-shell">
+          <SectionHeader
+            headingId="research-heading"
+            tally={`${pad(featuredAreas.length)} / ${pad(researchAreas.length)} ${content.unitRecords}`}
+            title={content.researchTitle}
+            description={content.researchDescription}
+            href={route('research', locale)}
+            linkLabel={content.allResearch}
+          />
+          <ResearchFieldPlate locale={locale} />
+          <div class="research-grid">
+            {featuredAreas.map((area, index) => (
+              <ResearchAreaCard area={area} locale={locale} index={index} />
+            ))}
+          </div>
+          <aside class="transversal-note" aria-labelledby="transversal-note-title">
+            <h3 id="transversal-note-title">{content.transversalLabel}</h3>
+            <p>{content.transversalBody}</p>
+          </aside>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    projects.length > 0 && (
+      <section class="projects-section section-space" aria-labelledby="projects-heading">
+        <div class="container-shell">
+          <SectionHeader
+            headingId="projects-heading"
+            tally={`${pad(featuredProjects.length)} / ${pad(projects.length)} ${content.unitRecords}`}
+            title={content.projectsTitle}
+            description={content.projectsDescription}
+            href={route('projects', locale)}
+            linkLabel={content.allProjects}
+          />
+          <div class="project-grid">
+            {featuredProjects.map((project, index) => (
+              <ProjectCard project={project} locale={locale} index={index} />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    previewPeople.length > 0 && (
+      <section class="people-section section-space surface-grid" aria-labelledby="people-heading">
+        <div class="container-shell">
+          <SectionHeader
+            headingId="people-heading"
+            tally={`${pad(previewPeople.length)} / ${pad(people.length)} ${content.unitRecords}`}
+            title={content.peopleTitle}
+            description={content.peopleDescription}
+          />
+          <PeopleGrid people={previewPeople} locale={locale} />
+          <div class="people-preview-actions">
+            <a class="button-secondary" href={route('people', locale)}>
+              {content.viewPeople}
+              <ArrowRight size={17} aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    outputs.length > 0 && (
+      <section class="outputs-section section-space" aria-labelledby="outputs-heading">
+        <div class="container-shell outputs-grid">
+          <div class="outputs-copy">
+            <h2 class="section-title" id="outputs-heading">
+              {content.outputsTitle}
+            </h2>
+            <p>{content.outputsDescription}</p>
+            <a class="button-secondary" href={route('outputs', locale)}>
+              {content.viewOutputs}
+              <ArrowRight size={17} aria-hidden="true" />
+            </a>
+          </div>
+          <div class="output-register">
+            <ul>
+              {outputs.slice(0, 4).map((output) => (
+                <li>
+                  <span>{output.data.year}</span>
+                  <strong>
+                    <a
+                      href={
+                        isEs
+                          ? `/produccion/${output.data.routeSlug}/`
+                          : `/en/outputs/${output.data.routeSlug}/`
+                      }
+                    >
+                      {output.data.title}
+                    </a>
+                  </strong>
+                  <small>{output.data.type}</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <section class="opensource-section deep-surface" aria-labelledby="opensource-heading">
+    <div class="opensource-scene" aria-hidden="true"></div>
+    <div class="container-shell opensource-grid">
+      <div class="opensource-mark"><GithubIcon size={34} /></div>
+      <div class="opensource-copy">
+        <h2 id="opensource-heading">{content.softwareTitle}</h2>
+        <p>{content.softwareBody}</p>
+      </div>
+      <a
+        class="button-primary github-button"
+        href={siteConfig.github}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <GithubIcon size={19} />{content.githubCta}<ArrowUpRight size={16} aria-hidden="true" />
+      </a>
+    </div>
+  </section>
+
+  {
+    homeNews.length > 0 && (
+      <section class="news-section section-space" aria-labelledby="news-heading">
+        <div class="container-shell">
+          <SectionHeader
+            headingId="news-heading"
+            tally={`${pad(Math.min(homeNews.length, 2))} / ${pad(news.length)} ${content.unitRecords}`}
+            title={content.newsTitle}
+            href={route('news', locale)}
+            linkLabel={content.allNews}
+          />
+          <div class="news-list">
+            {homeNews.slice(0, 2).map((item) => (
+              <NewsCard item={item} locale={locale} />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    activeCall && (
+      <section class="call-section no-print" aria-labelledby="call-heading">
+        <div class="container-shell call-grid">
+          <div class="call-status">
+            <StatusBadge status="open" label={content.callLabel} />
+            <strong>{activeCall.data.semester}</strong>
+          </div>
+          <div class="call-copy">
+            <p>
+              {content.callDeadline}{' '}
+              <time datetime={activeCall.data.closeDate}>
+                {formatDate(activeCall.data.closeDate, locale)}
+              </time>
+            </p>
+            <h2 id="call-heading">{activeCall.data.summary}</h2>
+          </div>
+          <a class="button-primary" href={route('join', locale)}>
+            {content.callCta}
+            <ArrowRight size={17} aria-hidden="true" />
+          </a>
+        </div>
+      </section>
+    )
+  }
+</BaseLayout>
+
+<style>
+  .home-hero {
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    background:
+      linear-gradient(rgba(16, 41, 61, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(16, 41, 61, 0.03) 1px, transparent 1px),
+      radial-gradient(circle at 79% 48%, rgba(16, 41, 61, 0.09), transparent 25rem),
+      linear-gradient(145deg, var(--surface) 32%, var(--surface-muted) 100%);
+    background-size:
+      1.2rem 1.2rem,
+      1.2rem 1.2rem,
+      auto,
+      auto;
+  }
+
+  /* Carta y arco pertenecen al mismo lenguaje de navegación de la intro. La
+     escala es grande y tenue: en el sitio se consulta, no se pilota. */
+  .home-hero::before {
+    position: absolute;
+    top: 50%;
+    left: 79%;
+    width: min(50rem, 72vw);
+    aspect-ratio: 1;
+    border: 1px solid rgba(16, 41, 61, 0.09);
+    border-radius: 50%;
+    box-shadow:
+      inset 0 0 0 4rem rgba(16, 41, 61, 0.012),
+      0 0 0 7rem rgba(16, 41, 61, 0.012);
+    content: '';
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
+
+  .home-hero::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 0.52rem;
+    background-image:
+      repeating-linear-gradient(90deg, var(--primary) 0 1px, transparent 1px 4rem),
+      repeating-linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px 0.5rem);
+    background-position: bottom;
+    background-repeat: repeat-x;
+    background-size:
+      100% 0.52rem,
+      100% 0.22rem;
+    content: '';
+    opacity: 0.52;
+    pointer-events: none;
+  }
+
+  .hero-layout {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    min-height: min(42rem, calc(100svh - var(--header-height)));
+    grid-template-columns: minmax(0, 1.05fr) minmax(27rem, 0.95fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 6rem);
+    border-inline: 1px solid rgba(170, 185, 179, 0.64);
+    background: linear-gradient(90deg, rgba(248, 246, 238, 0.56), transparent 56%);
+    padding-inline: clamp(1.25rem, 2.6vw, 2.5rem);
+    padding-block: clamp(2.5rem, 5svh, 4rem);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.55);
+  }
+
+  .hero-layout.chassis {
+    --chassis-mark: var(--primary);
+  }
+
+  .hero-copy {
+    position: relative;
+    z-index: 2;
+  }
+
+  .hero-kicker {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin: 0 0 1.5rem;
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .hero-kicker::before {
+    width: 2.5rem;
+    height: 1px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    content: '';
+  }
+
+  .hero-kicker::after {
+    width: min(8rem, 16vw);
+    height: 0.38rem;
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--rule-strong) 0 1px,
+      transparent 1px 0.5rem
+    );
+    background-position: bottom;
+    background-repeat: repeat-x;
+    content: '';
+  }
+
+  .home-hero :global(.display-title) {
+    max-width: 13ch;
+    font-size: clamp(3rem, 5.7vw, 5.75rem);
+  }
+
+  .hero-description {
+    max-width: 56ch;
+    margin: 1.6rem 0 0;
+    color: var(--text-muted);
+    font-size: clamp(1.08rem, 1.7vw, 1.34rem);
+    line-height: 1.65;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 1.9rem;
+  }
+
+  .github-tertiary {
+    display: inline-flex;
+    min-height: 2.875rem;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: 0.35rem;
+    color: var(--primary);
+    font-size: 0.84rem;
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .hero-location {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-top: 2.6rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+  }
+
+  .hero-location :global(svg) {
+    color: var(--accent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .github-tertiary:hover {
+      color: var(--primary-hover);
+      text-decoration: underline;
+    }
+  }
+
+  .research-section {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* El home sostiene una lectura más compacta que las páginas de catálogo:
+     conserva cambios de idea claros sin duplicar el aire de cabecera y bloque. */
+  .section-space {
+    padding-block: clamp(3.75rem, 6vw, 6rem);
+  }
+
+  .research-section :global(.section-header),
+  .projects-section :global(.section-header),
+  .news-section :global(.section-header) {
+    margin-bottom: clamp(1.75rem, 3vw, 2.75rem);
+  }
+
+  .research-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(0.75rem, 1.4vw, 1.15rem);
+  }
+
+  .research-grid > :global(*) + :global(*) {
+    border-left: 1px solid var(--border);
+  }
+
+  .transversal-note {
+    display: grid;
+    grid-template-columns: minmax(10rem, 0.24fr) minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0 1.5rem;
+    margin: clamp(0.75rem, 1.4vw, 1.15rem) 0 0;
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 1rem;
+  }
+
+  .transversal-note h3,
+  .transversal-note p {
+    margin: 0;
+    padding: 0;
+  }
+
+  .transversal-note h3 {
+    grid-column: 1;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    line-height: 1.6;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .transversal-note p {
+    grid-column: 2;
+    width: 100%;
+    max-width: none;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  /* Estudio orbital de fondo. Solo ocupa el costado derecho y queda detrás
+     de módulos opacos: aparece en los márgenes, no debajo de la lectura. */
+  .projects-section {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--background);
+  }
+
+  .projects-section > .container-shell {
+    position: relative;
+    z-index: 1;
+  }
+
+  .projects-section::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background-image: url('/images/background-orbital-study.webp');
+    background-position: center;
+    background-size: cover;
+    content: '';
+    opacity: 0.48;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0 28%, #000 58% 100%);
+    mask-image: linear-gradient(90deg, transparent 0 28%, #000 58% 100%);
+  }
+
+  .people-section {
+    border-block: 1px solid var(--border);
+  }
+
+  .people-section :global(.section-header) {
+    margin-bottom: clamp(1.75rem, 3vw, 2.75rem);
+  }
+
+  .people-preview-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: clamp(1.75rem, 3vw, 2.75rem);
+  }
+
+  .outputs-section {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border-top: 1px solid var(--border);
+    background:
+      linear-gradient(118deg, rgba(255, 255, 255, 0.28), transparent 38%), var(--surface-muted);
+  }
+
+  .outputs-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(22rem, 1.15fr);
+    gap: clamp(3rem, 8vw, 8rem);
+  }
+
+  .outputs-section::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background-image: url('/images/background-archive-recorder.webp');
+    background-position: center bottom -2.5rem;
+    background-repeat: no-repeat;
+    background-size: min(88rem, 108vw) auto;
+    content: '';
+    opacity: 0.34;
+    pointer-events: none;
+    -webkit-mask-image: radial-gradient(ellipse 48% 62% at 50% 92%, #000 0 46%, transparent 82%);
+    mask-image: radial-gradient(ellipse 48% 62% at 50% 92%, #000 0 46%, transparent 82%);
+  }
+
+  .outputs-copy > p {
+    max-width: 54ch;
+    margin: 1.5rem 0 2rem;
+    color: var(--text-muted);
+  }
+
+  .output-register {
+    align-self: center;
+    border-top: 2px solid var(--primary);
+  }
+
+  .output-register ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .output-register li {
+    display: grid;
+    grid-template-columns: 4rem 1fr auto;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-block: 1.2rem;
+  }
+
+  /* Misma superficie profunda que el dial y el pie: un solo aparato. */
+  .opensource-section {
+    --focus: var(--amber);
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border-block: 1px solid var(--deep-rule);
+    background: var(--deep);
+    box-shadow:
+      inset 0 0.36rem rgba(168, 139, 85, 0.045),
+      inset 0 -0.36rem rgba(2, 7, 11, 0.36);
+  }
+
+  .opensource-scene {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background-image: url('/images/opensource-computing-bay-v1.webp');
+    background-position: right 54%;
+    background-repeat: no-repeat;
+    background-size: auto 165%;
+    opacity: 0.86;
+    pointer-events: none;
+  }
+
+  .opensource-scene::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      var(--deep) 0 31%,
+      rgba(8, 25, 42, 0.94) 47%,
+      rgba(8, 25, 42, 0.54) 70%,
+      rgba(8, 25, 42, 0.18) 100%
+    );
+    content: '';
+  }
+
+  .opensource-section::before {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background-image: var(--scan), var(--grain);
+    background-size:
+      auto,
+      140px 140px;
+    content: '';
+    mix-blend-mode: overlay;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .opensource-grid {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    min-height: 12rem;
+    grid-template-columns: auto minmax(0, 31rem) auto minmax(10rem, 1fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 4rem);
+    padding-block: 3.5rem;
+  }
+
+  .opensource-mark {
+    display: grid;
+    width: 6rem;
+    height: 6rem;
+    place-items: center;
+    border: 1px solid var(--deep-rule);
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 0.36rem var(--deep),
+      0 0 0 calc(0.36rem + 1px) rgba(168, 139, 85, 0.45),
+      inset 0 0 0 0.9rem rgba(227, 165, 76, 0.05);
+    color: var(--amber);
+  }
+
+  .opensource-section h2 {
+    margin: 0;
+    color: white;
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 4.2vw, 3.6rem);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    line-height: 1.04;
+  }
+
+  .opensource-section p {
+    max-width: 59ch;
+    margin: 1.25rem 0 0;
+    color: var(--deep-ink-2);
+  }
+
+  .github-button {
+    grid-column: 3;
+    border-color: var(--amber);
+    background: rgba(8, 25, 42, 0.72);
+    color: var(--amber);
+    backdrop-filter: blur(4px);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .github-button:hover {
+      border-color: var(--amber-hi);
+      background: rgba(227, 165, 76, 0.12);
+      color: var(--amber-hi);
+    }
+  }
+
+  .news-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  .news-list > :global(:only-child) {
+    grid-column: 1 / -1;
+  }
+
+  .call-section {
+    border-top: 1px solid #acdcb7;
+    border-bottom: 1px solid #acdcb7;
+    background: #ecf8ef;
+  }
+
+  .call-grid {
+    display: grid;
+    min-height: 14rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5rem);
+    padding-block: 2.5rem;
+  }
+
+  .call-status {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .call-status strong {
+    color: var(--success);
+    font-size: clamp(2.8rem, 5vw, 4.5rem);
+    letter-spacing: -0.06em;
+    line-height: 1;
+  }
+
+  .call-copy p {
+    margin: 0 0 0.5rem;
+    color: var(--success);
+    font-size: 0.83rem;
+    font-weight: 650;
+  }
+
+  .call-copy h2 {
+    max-width: 36ch;
+    margin: 0;
+    color: var(--primary);
+    font-size: clamp(1.3rem, 2.5vw, 2rem);
+    font-weight: 620;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+  }
+
+  @media (max-width: 74rem) {
+    .hero-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(25rem, 0.95fr);
+      gap: 3rem;
+    }
+  }
+
+  @media (min-width: 56.01rem) and (max-height: 56.25rem) {
+    .hero-layout {
+      align-items: start;
+      gap: 3rem;
+      padding-block: clamp(2.5rem, 5svh, 3.5rem) 3.5rem;
+    }
+
+    .hero-description {
+      margin-top: 1.25rem;
+      line-height: 1.55;
+    }
+
+    .hero-actions {
+      margin-top: 1.5rem;
+    }
+
+    .hero-location {
+      margin-top: 1.75rem;
+    }
+  }
+
+  @media (min-width: 56.01rem) and (max-height: 47.5rem) {
+    .hero-layout {
+      min-height: auto;
+      padding-block: 2rem 3rem;
+    }
+
+    .home-hero :global(.display-title) {
+      font-size: clamp(3.35rem, 5.5vw, 4.9rem);
+    }
+  }
+
+  @media (max-width: 67.49rem) {
+    .research-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .opensource-scene {
+      background-position: 64% center;
+      background-size: auto 135%;
+      opacity: 0.68;
+    }
+
+    .opensource-grid {
+      grid-template-columns: auto 1fr;
+    }
+
+    .github-button {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+
+  @media (max-width: 67.49rem) {
+    .hero-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(23rem, 0.9fr);
+      gap: 2.25rem;
+    }
+  }
+
+  @media (max-width: 56rem) {
+    .hero-layout {
+      min-height: auto;
+      grid-template-columns: 1fr;
+      padding-block: 3.75rem;
+    }
+
+    .projects-section::before {
+      background-position: 72% top;
+      background-size: auto 36rem;
+      -webkit-mask-image: linear-gradient(180deg, #000 0 42%, transparent 84%);
+      mask-image: linear-gradient(180deg, #000 0 42%, transparent 84%);
+      opacity: 0.26;
+    }
+
+    .outputs-section::before {
+      background-position: center bottom -1rem;
+      background-size: auto 31rem;
+      -webkit-mask-image: linear-gradient(180deg, transparent 0 35%, #000 72% 100%);
+      mask-image: linear-gradient(180deg, transparent 0 35%, #000 72% 100%);
+      opacity: 0.24;
+    }
+  }
+
+  @media (max-width: 47.99rem) {
+    .hero-layout {
+      padding-block: 3rem 4.25rem;
+    }
+
+    .home-hero :global(.display-title) {
+      font-size: clamp(2.85rem, 13vw, 4.25rem);
+    }
+
+    .hero-location {
+      margin-top: 2.4rem;
+    }
+
+    .outputs-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .project-grid,
+    .news-list {
+      grid-template-columns: 1fr;
+    }
+
+    .call-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .opensource-grid {
+      grid-template-columns: 1fr;
+      padding-block: 4rem;
+    }
+
+    .opensource-scene {
+      background-position: 69% bottom;
+      background-size: auto 105%;
+      opacity: 0.5;
+    }
+
+    .opensource-scene::after {
+      background: linear-gradient(
+        180deg,
+        var(--deep) 0 44%,
+        rgba(8, 25, 42, 0.82) 68%,
+        rgba(8, 25, 42, 0.36) 100%
+      );
+    }
+
+    .github-button {
+      grid-column: 1;
+    }
+
+    .opensource-mark {
+      width: 4.5rem;
+      height: 4.5rem;
+    }
+
+    .github-button {
+      grid-column: auto;
+    }
+
+    .call-status {
+      grid-template-columns: auto 1fr;
+      align-items: center;
+    }
+  }
+
+  @media (max-width: 35rem) {
+    .research-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .transversal-note {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+
+    .transversal-note h3,
+    .transversal-note p {
+      grid-column: 1;
+    }
+
+    .hero-actions > .button-primary,
+    .hero-actions > .button-secondary {
+      width: 100%;
+    }
+
+    .github-tertiary {
+      justify-content: center;
+      margin-inline: auto;
+    }
+  }
+</style>
