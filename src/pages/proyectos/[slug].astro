@@ -1,0 +1,24 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import ProjectDetailPage from '../../components/pages/ProjectDetailPage.astro';
+import { findTranslation, isPublished } from '../../utils/content';
+
+export async function getStaticPaths() {
+  const all = (await getCollection('projects')).filter(isPublished);
+  return all
+    .filter((entry) => entry.data.locale === 'es')
+    .map((project) => ({ params: { slug: project.data.routeSlug }, props: { project, all } }));
+}
+interface Props {
+  project: CollectionEntry<'projects'>;
+  all: CollectionEntry<'projects'>[];
+}
+const { project, all } = Astro.props;
+const translation = findTranslation(all, project);
+---
+
+<ProjectDetailPage
+  project={project}
+  locale="es"
+  alternatePath={translation ? `/en/projects/${translation.data.routeSlug}/` : null}
+/>
