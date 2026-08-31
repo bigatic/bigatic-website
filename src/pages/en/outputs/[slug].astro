@@ -1,0 +1,500 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import { ArrowUpRight } from '@lucide/astro';
+import ContentLayout from '../../../layouts/ContentLayout.astro';
+import { route } from '../../../i18n/routes';
+import { findTranslation, isPublished } from '../../../utils/content';
+export async function getStaticPaths() {
+  const all = (await getCollection('outputs')).filter(isPublished);
+  return all
+    .filter((e) => e.data.locale === 'en')
+    .map((output) => ({ params: { slug: output.data.routeSlug }, props: { output, all } }));
+}
+interface Props {
+  output: CollectionEntry<'outputs'>;
+  all: CollectionEntry<'outputs'>[];
+}
+const { output, all } = Astro.props;
+const translation = findTranslation(all, output);
+const { Content } = await render(output);
+const projectEntries = (await getCollection('projects')).filter(
+  (entry) => entry.data.locale === 'en' && isPublished(entry),
+);
+const researchEntries = (await getCollection('research')).filter(
+  (entry) => entry.data.locale === 'en',
+);
+const relatedProject = output.data.project
+  ? projectEntries.find((entry) => entry.data.translationKey === output.data.project)
+  : undefined;
+const relatedArea = output.data.researchArea
+  ? researchEntries.find((entry) => entry.data.translationKey === output.data.researchArea)
+  : undefined;
+const typeLabels = {
+  'journal-article': 'Journal Article',
+  'conference-paper': 'Conference Paper',
+  'book-chapter': 'Book Chapter',
+  software: 'Software',
+  dataset: 'Dataset',
+  'technical-report': 'Technical Report',
+  poster: 'Poster',
+  presentation: 'Presentation',
+  thesis: 'Thesis',
+  'research-prototype': 'Research Prototype',
+  other: 'Other',
+};
+const pad = (value: number) => String(value).padStart(2, '0');
+/* El host es dato real del enlace: identifica el destino sin inventar nada. */
+const hostOf = (value: string) => new URL(value).host.replace(/^www\./, '');
+const relationCount = (relatedProject ? 1 : 0) + (relatedArea ? 1 : 0);
+const hasRegister = Boolean(output.data.version || output.data.language || output.data.license);
+---
+
+<ContentLayout
+  title={output.data.title}
+  description={output.data.abstract ?? `${typeLabels[output.data.type]}, ${output.data.year}`}
+  locale="en"
+  canonicalPath={`/en/outputs/${output.data.routeSlug}/`}
+  alternatePath={translation ? `/produccion/${translation.data.routeSlug}/` : null}
+  breadcrumbs={[{ label: 'Outputs', href: route('outputs', 'en') }, { label: output.data.title }]}
+  compact
+>
+  <article class="output-detail section-space">
+    <div class="container-shell detail-grid">
+      <aside class="record chassis" aria-labelledby="record-title">
+        <div class="module-bar record-rule">
+          <span class="bar-mark" aria-hidden="true"></span>
+          <span class="scale" aria-hidden="true"></span>
+          <span class="record-year mono">{output.data.year}</span>
+        </div>
+        <h2 id="record-title" class="record-title">Catalogue record</h2>
+        <p class="record-type">{typeLabels[output.data.type]}</p>
+
+        <div class="record-field">
+          <h3 class="mono-label">Authors</h3>
+          <ol class="record-authors">
+            {
+              output.data.authors.map((author, index) => (
+                <li>
+                  <span class="author-index mono" aria-hidden="true">
+                    {pad(index + 1)}
+                  </span>
+                  {author}
+                </li>
+              ))
+            }
+          </ol>
+        </div>
+
+        {
+          output.data.venue && (
+            <div class="record-field">
+              <h3 class="mono-label">Venue</h3>
+              <p>{output.data.venue}</p>
+            </div>
+          )
+        }
+        {
+          output.data.publisher && (
+            <div class="record-field">
+              <h3 class="mono-label">Publisher</h3>
+              <p>{output.data.publisher}</p>
+            </div>
+          )
+        }
+
+        {
+          hasRegister && (
+            <dl class="register record-register">
+              {output.data.version && (
+                <div>
+                  <dt>Version</dt>
+                  <span class="leader" aria-hidden="true" />
+                  <dd>{output.data.version}</dd>
+                </div>
+              )}
+              {output.data.language && (
+                <div>
+                  <dt>Language</dt>
+                  <span class="leader" aria-hidden="true" />
+                  <dd>{output.data.language}</dd>
+                </div>
+              )}
+              {output.data.license && (
+                <div>
+                  <dt>License</dt>
+                  <span class="leader" aria-hidden="true" />
+                  <dd>{output.data.license}</dd>
+                </div>
+              )}
+            </dl>
+          )
+        }
+
+        {
+          output.data.doi && (
+            <a
+              class="record-link"
+              href={`https://doi.org/${output.data.doi}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="mono-label">DOI</span>
+              <span class="link-value mono">{output.data.doi}</span>
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </a>
+          )
+        }
+        {
+          output.data.url && (
+            <a class="record-link" href={output.data.url} target="_blank" rel="noopener noreferrer">
+              <span class="mono-label">Published resource</span>
+              <span class="link-value mono">{hostOf(output.data.url)}</span>
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </a>
+          )
+        }
+        {
+          output.data.repository && (
+            <a
+              class="record-link"
+              href={output.data.repository}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="mono-label">Repository</span>
+              <span class="link-value mono">{hostOf(output.data.repository)}</span>
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </a>
+          )
+        }
+      </aside>
+
+      <div class="prose-content">
+        <Content />
+        {
+          output.data.abstract && (
+            <section class="record-section">
+              <div class="module-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+              </div>
+              <h2>Abstract</h2>
+              <p>{output.data.abstract}</p>
+            </section>
+          )
+        }
+        {
+          output.data.citation && (
+            <section class="record-section">
+              <div class="module-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+              </div>
+              <h2>Citation</h2>
+              <p class="citation">{output.data.citation}</p>
+            </section>
+          )
+        }
+        {
+          output.data.bibtex && (
+            <section class="record-section">
+              <div class="module-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+              </div>
+              <h2>BibTeX</h2>
+              <pre>
+                <code>{output.data.bibtex}</code>
+              </pre>
+            </section>
+          )
+        }
+        {
+          relationCount > 0 && (
+            <section class="record-section">
+              <div class="module-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+                <span class="tally mono-label">{pad(relationCount)}</span>
+              </div>
+              <h2>Relationships</h2>
+              <ul class="relation-list">
+                {relatedProject && (
+                  <li>
+                    <span class="mono-label">Project</span>
+                    <a href={`/en/projects/${relatedProject.data.routeSlug}/`}>
+                      <span class="mark-node" aria-hidden="true" />
+                      {relatedProject.data.title}
+                    </a>
+                  </li>
+                )}
+                {relatedArea && (
+                  <li>
+                    <span class="mono-label">Research area</span>
+                    <a href={`/en/research/${relatedArea.data.routeSlug}/`}>
+                      <span class="mark-ring" aria-hidden="true" />
+                      {relatedArea.data.name}
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </section>
+          )
+        }
+      </div>
+    </div>
+  </article>
+</ContentLayout>
+<style>
+  .output-detail {
+    background: var(--surface);
+  }
+
+  .detail-grid {
+    display: grid;
+    align-items: start;
+    grid-template-columns: 17rem minmax(0, 1fr);
+    gap: clamp(2rem, 5vw, 4.5rem);
+  }
+
+  /*
+   * Panel del aparato. La ficha se lee como la carcasa del producto: canto
+   * superior en la tinta del sello, escuadras del chasis en la misma tinta y
+   * todo el aparato a escuadra.
+   */
+  .record {
+    --chassis-mark: var(--primary);
+    position: sticky;
+    top: calc(var(--header-height) + 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface);
+    padding: 1.15rem 1.2rem 1.3rem;
+  }
+
+  .record-rule {
+    align-items: center;
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .record-year {
+    flex: none;
+    color: var(--primary);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1;
+  }
+
+  .record-title {
+    margin: 0;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  /* Insignia de misión: el tipo de producto es categoría, no estado; va a escuadra. */
+  .record-type {
+    width: fit-content;
+    margin: -0.55rem 0 0;
+    border: 1px solid var(--rule-strong);
+    background: var(--surface-muted);
+    color: var(--primary);
+    padding: 0.34rem 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .record-field {
+    display: grid;
+    gap: 0.4rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.9rem;
+  }
+
+  .record-field h3 {
+    margin: 0;
+  }
+
+  .record-field p {
+    margin: 0;
+    color: var(--text);
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .record-authors {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    color: var(--text);
+    font-size: 0.88rem;
+    line-height: 1.4;
+    list-style: none;
+  }
+
+  .record-authors li {
+    display: grid;
+    grid-template-columns: 1.6rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0.35rem;
+  }
+
+  .author-index {
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+
+  .record-register {
+    border-top: 1px solid var(--border);
+    padding-top: 0.95rem;
+  }
+
+  .record-register dd {
+    text-align: right;
+  }
+
+  /* Salida al exterior: etiqueta en mono, identificador real y objetivo de 44 px. */
+  .record-link {
+    display: grid;
+    min-height: 2.75rem;
+    align-content: center;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.15rem 0.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--primary-hover);
+    padding-top: 0.75rem;
+    text-decoration: none;
+    transition: color var(--motion-fast) ease;
+  }
+
+  .record-link .mono-label {
+    grid-column: 1;
+    color: inherit;
+    font-size: 0.6rem;
+  }
+
+  .record-link :global(svg) {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    align-self: center;
+    transition: transform var(--motion-fast) ease;
+  }
+
+  .link-value {
+    overflow-wrap: anywhere;
+    grid-column: 1;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    line-height: 1.35;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .record-link:hover {
+      color: var(--primary);
+    }
+
+    .record-link:hover :global(svg) {
+      transform: translate(0.15rem, -0.15rem);
+    }
+  }
+
+  /* La escala graduada abre cada bloque de lectura, como en el resto del sitio. */
+  .prose-content .record-section {
+    margin-top: clamp(2.75rem, 6vw, 4rem);
+  }
+
+  .prose-content .record-section h2 {
+    margin-top: 0.9rem;
+  }
+
+  .prose-content .record-section .tally {
+    flex: none;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+  }
+
+  .prose-content .citation {
+    border-left: 2px solid var(--rule-strong);
+    padding-left: 1.1rem;
+  }
+
+  .prose-content pre {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    color: var(--primary);
+    padding: 1rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    tab-size: 2;
+  }
+
+  .prose-content .relation-list {
+    display: grid;
+    gap: 0.9rem;
+    padding-left: 0;
+    list-style: none;
+  }
+
+  .prose-content .relation-list li {
+    display: grid;
+    gap: 0.3rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.7rem;
+  }
+
+  .prose-content .relation-list a {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--primary);
+    font-size: 1rem;
+    text-decoration: none;
+  }
+
+  .prose-content .relation-list .mark-node,
+  .prose-content .relation-list .mark-ring {
+    color: var(--primary-hover);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .prose-content .relation-list a:hover {
+      color: var(--primary-hover);
+      text-decoration: underline;
+    }
+  }
+
+  @media (max-width: 56rem) {
+    .detail-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .record {
+      position: static;
+    }
+  }
+</style>

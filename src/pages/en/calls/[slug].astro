@@ -1,0 +1,24 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import CallDetailPage from '../../../components/pages/CallDetailPage.astro';
+import { findTranslation, isPublished } from '../../../utils/content';
+
+export async function getStaticPaths() {
+  const all = (await getCollection('calls')).filter(isPublished);
+  return all
+    .filter((entry) => entry.data.locale === 'en')
+    .map((call) => ({ params: { slug: call.data.routeSlug }, props: { call, all } }));
+}
+interface Props {
+  call: CollectionEntry<'calls'>;
+  all: CollectionEntry<'calls'>[];
+}
+const { call, all } = Astro.props;
+const translation = findTranslation(all, call);
+---
+
+<CallDetailPage
+  call={call}
+  locale="en"
+  alternatePath={translation ? `/convocatorias/${translation.data.routeSlug}/` : null}
+/>

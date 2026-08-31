@@ -1,0 +1,21 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import PersonDetailPage from '../../../components/pages/PersonDetailPage.astro';
+import { isPublished } from '../../../utils/content';
+
+export async function getStaticPaths() {
+  const all = (await getCollection('people')).filter(isPublished);
+  return all
+    .filter((entry) => entry.data.locale === 'en')
+    .map((person) => ({ params: { slug: person.data.routeSlug }, props: { person, all } }));
+}
+
+interface Props {
+  person: CollectionEntry<'people'>;
+  all: CollectionEntry<'people'>[];
+}
+
+const { person, all } = Astro.props;
+---
+
+<PersonDetailPage person={person} all={all} locale="en" />

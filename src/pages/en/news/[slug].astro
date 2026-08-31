@@ -1,0 +1,164 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import ContentLayout from '../../../layouts/ContentLayout.astro';
+import { route } from '../../../i18n/routes';
+import { findTranslation, formatDate, isPublished } from '../../../utils/content';
+
+export async function getStaticPaths() {
+  const all = (await getCollection('news')).filter(isPublished);
+  return all
+    .filter((entry) => entry.data.locale === 'en')
+    .map((item) => ({ params: { slug: item.data.routeSlug }, props: { item, all } }));
+}
+interface Props {
+  item: CollectionEntry<'news'>;
+  all: CollectionEntry<'news'>[];
+}
+const { item, all } = Astro.props;
+const translation = findTranslation(all, item);
+const { Content } = await render(item);
+const calls = (await getCollection('calls')).filter(
+  (entry) => entry.data.locale === 'en' && isPublished(entry),
+);
+const projects = (await getCollection('projects')).filter(
+  (entry) => entry.data.locale === 'en' && isPublished(entry),
+);
+const relatedCall = item.data.relatedCall
+  ? calls.find((entry) => entry.data.translationKey === item.data.relatedCall)
+  : undefined;
+const relatedProject = item.data.relatedProject
+  ? projects.find((entry) => entry.data.translationKey === item.data.relatedProject)
+  : undefined;
+---
+
+<ContentLayout
+  title={item.data.title}
+  description={item.data.summary}
+  locale="en"
+  canonicalPath={`/en/news/${item.data.routeSlug}/`}
+  alternatePath={translation ? `/actualidad/${translation.data.routeSlug}/` : null}
+  breadcrumbs={[{ label: 'News', href: route('news', 'en') }, { label: item.data.title }]}
+  ogType="article"
+  ogImage={item.data.image}
+  ogImageAlt={item.data.imageAlt}
+  publishedDate={item.data.date}
+  modifiedDate={item.data.updatedDate}
+  authorName={item.data.author}
+  compact
+>
+  {
+    item.data.image && (
+      <figure slot="hero-aside" class="hero-image">
+        <img
+          src={item.data.image}
+          width={item.data.imageWidth}
+          height={item.data.imageHeight}
+          alt={item.data.imageAlt}
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+        />
+      </figure>
+    )
+  }
+  <article class="news-detail section-space">
+    <div class="container-shell article-grid">
+      <aside>
+        <time datetime={item.data.date}>{formatDate(item.data.date, 'en')}</time>{
+          item.data.updatedDate && (
+            <p>
+              Updated{' '}
+              <time datetime={item.data.updatedDate}>
+                {formatDate(item.data.updatedDate, 'en')}
+              </time>
+            </p>
+          )
+        }<p>By {item.data.author}</p><ul>{item.data.tags.map((tag) => <li>{tag}</li>)}</ul>
+      </aside><div class="prose-content">
+        <Content />{
+          (relatedCall || relatedProject || item.data.relatedEvent) && (
+            <section>
+              <>
+                <h2>Related content</h2>
+                <ul>
+                  {relatedCall && (
+                    <li>
+                      <a href={`/en/calls/${relatedCall.data.routeSlug}/`}>
+                        {relatedCall.data.title}
+                      </a>
+                    </li>
+                  )}
+                  {relatedProject && (
+                    <li>
+                      <a href={`/en/projects/${relatedProject.data.routeSlug}/`}>
+                        {relatedProject.data.title}
+                      </a>
+                    </li>
+                  )}
+                  {item.data.relatedEvent && <li>{item.data.relatedEvent}</li>}
+                </ul>
+              </>
+            </section>
+          )
+        }
+      </div>
+    </div>
+  </article>
+</ContentLayout>
+<style>
+  .hero-image {
+    width: min(100%, 24rem);
+    margin: 0 0 0 auto;
+  }
+  .hero-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: 0 1.5rem 4rem rgba(6, 45, 86, 0.12);
+  }
+  .news-detail {
+    background: var(--surface);
+  }
+  .article-grid {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: clamp(3rem, 8vw, 8rem);
+  }
+  aside {
+    border-top: 2px solid var(--primary);
+    padding-top: 1.2rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  aside time {
+    color: var(--primary);
+    font-weight: 650;
+  }
+  aside ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 1.2rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  aside li {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.7rem;
+  }
+  @media (max-width: 56rem) {
+    .hero-image {
+      width: min(100%, 21rem);
+      margin-inline: 0;
+    }
+  }
+  @media (max-width: 42rem) {
+    .article-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

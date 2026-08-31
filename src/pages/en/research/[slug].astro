@@ -1,0 +1,471 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import PeopleGrid from '../../../components/PeopleGrid.astro';
+import SectionHeader from '../../../components/SectionHeader.astro';
+import ContentLayout from '../../../layouts/ContentLayout.astro';
+import { route } from '../../../i18n/routes';
+import { findTranslation, isPublished } from '../../../utils/content';
+
+export async function getStaticPaths() {
+  const all = await getCollection('research');
+  return all
+    .filter((entry) => entry.data.locale === 'en')
+    .map((area) => ({ params: { slug: area.data.routeSlug }, props: { area, all } }));
+}
+
+const { area, all } = Astro.props;
+const translation = findTranslation(all, area);
+const { Content } = await render(area);
+const nameCollator = new Intl.Collator('en', { sensitivity: 'base' });
+const areaKey = area.data.translationKey;
+const areaByKey = new Map(
+  all
+    .filter((entry) => entry.data.locale === 'en')
+    .map((entry) => [entry.data.translationKey, entry]),
+);
+const projects = (await getCollection('projects'))
+  .filter(
+    (item) =>
+      item.data.locale === 'en' && isPublished(item) && item.data.researchAreas.includes(areaKey),
+  )
+  .sort((a, b) => nameCollator.compare(a.data.title, b.data.title));
+const people = (await getCollection('people'))
+  .filter(
+    (item) =>
+      item.data.locale === 'en' && isPublished(item) && item.data.researchAreas.includes(areaKey),
+  )
+  .sort((a, b) => nameCollator.compare(a.data.name, b.data.name));
+const outputs = (await getCollection('outputs')).filter(
+  (item) => item.data.locale === 'en' && isPublished(item) && item.data.researchArea === areaKey,
+);
+
+const statusLabels = {
+  active: 'Active',
+  completed: 'Completed',
+  planned: 'Planned',
+  archived: 'Archived',
+} as const;
+
+// Cada proyecto del semillero cruza dos o tres areas. En la ficha de un area
+// ese cruce deja de ser una cifra suelta: se nombra con que areas se comparte
+// y en cuantos proyectos, siempre a partir de `researchAreas` de la coleccion.
+const linkedProjects = projects.map((project) => ({
+  data: project.data,
+  shared: project.data.researchAreas
+    .filter((key) => key !== areaKey)
+    .map((key) => areaByKey.get(key))
+    .filter((entry): entry is CollectionEntry<'research'> => Boolean(entry)),
+}));
+const crossingCounts = new Map<string, number>();
+for (const project of linkedProjects) {
+  for (const entry of project.shared) {
+    crossingCounts.set(
+      entry.data.translationKey,
+      (crossingCounts.get(entry.data.translationKey) ?? 0) + 1,
+    );
+  }
+}
+const crossings = [...crossingCounts.entries()]
+  .map(([key, count]) => ({ entry: areaByKey.get(key)!, count }))
+  .sort((a, b) => b.count - a.count || nameCollator.compare(a.entry.data.name, b.entry.data.name));
+
+const areaStatus = area.data.status === 'current' ? 'Current' : 'In development';
+const pad = (value: number) => String(value).padStart(2, '0');
+const hasConnectedActivity = people.length > 0 || projects.length > 0 || outputs.length > 0;
+---
+
+<ContentLayout
+  title={area.data.name}
+  description={area.data.shortDescription}
+  locale="en"
+  canonicalPath={`/en/research/${area.data.routeSlug}/`}
+  alternatePath={translation ? `/investigacion/${translation.data.routeSlug}/` : null}
+  breadcrumbs={[{ label: 'Research', href: route('research', 'en') }, { label: area.data.name }]}
+>
+  <aside slot="hero-aside" class="area-file chassis" aria-label="Area summary">
+    <div class="file-head">
+      <span class="file-code">
+        {/* Anillo hueco: el area es la entidad que contiene proyectos e integrantes. */}
+        <span class="mark-ring" aria-hidden="true"></span>
+        Area
+      </span>
+      <span class="module-state">{areaStatus}</span>
+    </div>
+
+    <p class="mono-label file-legend">Associated topics</p>
+    <ul class="module-chips">{area.data.topics.map((topic) => <li>{topic}</li>)}</ul>
+
+    <div class="file-foot">
+      <dl class="register">
+        <div>
+          <dt>People</dt>
+          <span class="leader" aria-hidden="true"></span>
+          <dd>{pad(people.length)}</dd>
+        </div>
+        <div>
+          <dt>Projects</dt>
+          {
+            projects.length > 0 ? (
+              <span class="nodes" aria-hidden="true">
+                {projects.map(() => (
+                  <i class="mark-node" />
+                ))}
+              </span>
+            ) : (
+              <span class="leader" aria-hidden="true" />
+            )
+          }
+          <dd>{pad(projects.length)}</dd>
+        </div>
+        {
+          outputs.length > 0 && (
+            <div>
+              <dt>Outputs</dt>
+              <span class="leader" aria-hidden="true" />
+              <dd>{pad(outputs.length)}</dd>
+            </div>
+          )
+        }
+      </dl>
+    </div>
+  </aside>
+
+  <article class="detail section-space">
+    <div class="container-shell">
+      <div class="prose-content"><Content /></div>
+    </div>
+  </article>
+
+  {
+    hasConnectedActivity && (
+      <section
+        class="relationships section-space surface-grid"
+        aria-labelledby="relationships-title"
+      >
+        <div class="container-shell">
+          <SectionHeader title="Connected activity" headingId="relationships-title" />
+
+          {people.length > 0 && (
+            <section class="block" aria-labelledby="area-team-title">
+              <div class="module-bar block-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+              </div>
+              <h3 id="area-team-title">Research team</h3>
+              <PeopleGrid people={people} locale="en" />
+            </section>
+          )}
+
+          {linkedProjects.length > 0 && (
+            <section class="block" aria-labelledby="area-projects-title">
+              <div class="module-bar block-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+              </div>
+              <h3 id="area-projects-title">Linked projects</h3>
+              <div class="crossing">
+                <ul class="row-list">
+                  {linkedProjects.map((project) => (
+                    <li>
+                      <a href={`/en/projects/${project.data.routeSlug}/`}>
+                        {/* Punto lleno: el proyecto es la entidad concreta. */}
+                        <span class="mark-node" aria-hidden="true" />
+                        {project.data.title}
+                      </a>
+                      <span class="row-meta">{statusLabels[project.data.status]}</span>
+                      {project.shared.length > 0 && (
+                        <ul class="shared" aria-label="Shared areas">
+                          {project.shared.map((entry) => (
+                            <li>
+                              <span class="mark-ring" aria-hidden="true" />
+                              {entry.data.shortName}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+
+                {crossings.length > 0 && (
+                  <aside class="crossing-note chassis" aria-labelledby="crossing-label">
+                    <p class="mono-label" id="crossing-label">
+                      Crossing with other areas
+                    </p>
+                    <dl class="register">
+                      {crossings.map(({ entry, count }) => (
+                        <div>
+                          <dt>
+                            <span class="mark-ring" aria-hidden="true" />
+                            {entry.data.shortName}
+                          </dt>
+                          <span class="leader" aria-hidden="true" />
+                          <dd>{pad(count)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </aside>
+                )}
+              </div>
+            </section>
+          )}
+
+          {outputs.length > 0 && (
+            <section class="block" aria-labelledby="area-outputs-title">
+              <div class="module-bar block-bar" aria-hidden="true">
+                <span class="bar-mark" />
+                <span class="scale" />
+              </div>
+              <h3 id="area-outputs-title">Outputs</h3>
+              <ul class="row-list">
+                {outputs.map((item) => (
+                  <li>
+                    <a href={`/en/outputs/${item.data.routeSlug}/`}>
+                      <span class="mark-node" aria-hidden="true" />
+                      {item.data.title}
+                    </a>
+                    <span class="row-meta">{item.data.year}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      </section>
+    )
+  }
+</ContentLayout>
+
+<style>
+  /* Ficha del area: panel de instrumento, no tarjeta. Chasis, etiquetas en
+     mono y registro con guia punteada; la cifra de proyectos se guia con los
+     puntos de esos proyectos, tal como en la tarjeta de area. */
+  .area-file {
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface);
+    padding: 1.25rem 1.25rem 1.5rem;
+  }
+
+  .file-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+  }
+
+  .file-code {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary-hover);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .file-legend {
+    margin: 1.25rem 0 0.75rem;
+  }
+
+  .file-foot {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+
+  .nodes {
+    display: flex;
+    align-self: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.28rem;
+    min-width: 0;
+    color: var(--accent);
+  }
+
+  .detail {
+    background: var(--surface);
+  }
+
+  .relationships {
+    border-top: 1px solid var(--border);
+  }
+
+  .block + .block {
+    margin-top: clamp(3rem, 6vw, 4.5rem);
+  }
+
+  .block-bar {
+    margin-bottom: 1rem;
+  }
+
+  .bar-mark {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+
+  .block h3 {
+    margin: 0 0 1.25rem;
+    color: var(--primary);
+    font-size: 1.2rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  /* Lista de proyectos y de produccion: filas de registro, no enlaces sueltos. */
+  .row-list {
+    display: grid;
+    margin: 0;
+    border-top: 1px solid var(--border);
+    padding: 0;
+    list-style: none;
+  }
+
+  .row-list > li {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0.55rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0.875rem 1rem;
+    transition: background-color var(--motion-fast) ease;
+  }
+
+  .row-list a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    min-width: 0;
+    color: var(--primary);
+    font-weight: 650;
+    line-height: 1.4;
+    text-decoration: none;
+  }
+
+  .row-list a::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+  }
+
+  .row-list a:focus-visible {
+    outline: none;
+  }
+
+  .row-list > li:has(a:focus-visible) {
+    z-index: 1;
+    outline: 3px solid var(--focus);
+    outline-offset: 4px;
+  }
+
+  .row-list .mark-node {
+    align-self: center;
+    color: var(--accent);
+  }
+
+  .row-meta {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .shared {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.85rem;
+    margin: 0;
+    grid-column: 1 / -1;
+    padding: 0;
+    list-style: none;
+  }
+
+  .shared li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  .shared .mark-ring {
+    width: 0.5rem;
+    height: 0.5rem;
+    color: var(--primary-hover);
+  }
+
+  .crossing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+    align-items: start;
+    gap: clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  /* El registro del cruce: cifras que ninguna otra pieza de la pagina dice. */
+  .crossing-note {
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--primary);
+    background: var(--surface);
+    padding: 1.25rem;
+  }
+
+  .crossing-note .mono-label {
+    margin: 0 0 1rem;
+  }
+
+  .crossing-note dt {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .crossing-note .mark-ring {
+    width: 0.5rem;
+    height: 0.5rem;
+    flex: none;
+    color: var(--primary-hover);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .row-list > li:hover {
+      background: var(--surface-muted);
+    }
+  }
+
+  @media (max-width: 64rem) {
+    .crossing {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 35rem) {
+    .row-list > li {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .row-meta {
+      order: -1;
+    }
+  }
+</style>
