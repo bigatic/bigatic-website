@@ -14,6 +14,7 @@ researchExperience:
     name: Asistencia de investigación · BIOCOM
   - kind: academic-exchange
     name: Intercambio académico · Riga
+photo: /images/people/andres-david-gomez-morales.webp
 shortBio: 'Estudiante de sexto semestre de Ingeniería de Software en intercambio académico en Riga Technical University, Letonia, y asistente de investigación en BIOCOM.'
 researchAreas:
   - applied-computing
